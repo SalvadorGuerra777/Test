@@ -4,6 +4,8 @@ services:
     env_file: .env
     ports:
       - "8081:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - microservices
 

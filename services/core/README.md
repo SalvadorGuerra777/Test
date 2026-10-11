@@ -14,19 +14,72 @@ module version.
 
 ## Flow
 
-1. `POST /api/run.bxm` with `{ targetType, targetDescription }`.
-2. Builds an `aiAgent` wired to the `atlas-redteam` MCP server
-   (`mcpServers: [ATLAS_MCP_URL]`) — the agent gets ATLAS reference tools
-   (`atlas_search`, `atlas_get_technique`, ...) and the red-team toolkit
-   (`list_probes`, `get_probe`, `judge_response`, ...) as callable tools.
-3. The agent (MiniMax model) picks relevant techniques/probes and returns a
-   plan.
-4. Response: `{ ok, targetType, plan }`.
+Two steps: **plan**, then **execute**. The planning step uses an LLM
+(strategic, picks what to test); the execution step is plain deterministic
+code (delivers the attack, scores the reply) — no LLM in that loop, so it
+never hallucinates a finding.
 
-Delivering the selected probes to the actual target AI and scoring its
-responses (`judge_response`) is the next step, not yet wired here — this
-service currently produces the *strategy*, matching what was asked for
-first.
+### 1. Plan — `POST /api/run.bxm`
+
+`{ targetType, targetDescription }` →
+Builds an `aiAgent` wired to the `atlas-redteam` MCP server
+(`mcpServers: [ATLAS_MCP_URL]`) — the agent gets ATLAS reference tools
+(`atlas_search`, `atlas_get_technique`, ...) and the red-team toolkit
+(`list_probes`, `get_probe`, `judge_response`, ...) as callable tools. The
+agent (MiniMax model) picks relevant techniques/probes and returns a plan.
+Response: `{ ok, targetType, plan }` (`plan` is markdown text, including the
+probe ids it picked).
+
+### 2. Execute — `POST /api/execute.bxm`
+
+Delivers the selected probes to **your** target AI and scores the replies.
+Every target has its own HTTP contract (a REST API, an n8n webhook for
+WhatsApp, whatever) — instead of assuming one, you describe it with a
+`targetAdapter`:
+
+```json
+{
+  "probeIds": ["PI-DIRECT-001", "ACT-001"],
+  "targetAdapter": {
+    "url": "https://your-n8n-host/webhook/abc123",
+    "method": "POST",
+    "headers": { "Authorization": "Bearer ..." },
+    "bodyTemplate": { "mensaje": "{{PROMPT}}", "sessionId": "rexor-test" },
+    "responsePath": "0.output"
+  }
+}
+```
+
+- `bodyTemplate` is a real JSON object matching whatever shape your target
+  expects. `{{PROMPT}}` is replaced (anywhere in the structure, string
+  values only) with the probe's actual attack text — the substitution walks
+  the parsed JSON and re-serializes it, so quotes/newlines in the payload
+  come out correctly escaped; it's not a text-template hack.
+- `responsePath` is a dot-path into the target's JSON response, 0-indexed
+  for arrays (JS/JSON convention), e.g. `0.output` for an n8n webhook that
+  replies `[{"output": "..."}]`, or `choices.0.message.content` for an
+  OpenAI-shaped response. Omit it (or pass `""`) to treat the whole response
+  body as raw text.
+
+For each probe id: `get_probe` (MCP) → substitute into `bodyTemplate` →
+`bx:http` to `targetAdapter.url` → extract the reply via `responsePath` →
+`judge_response` (MCP) with that text. Response:
+`{ ok, findings: [ { probe_id, atlas_technique, severity, vulnerable, defended, rationale, evidence, mitigations, targetResponse }, ... ] }`.
+A probe that fails (unreachable target, bad JSON) gets `{ probeId, error }`
+in its slot instead of aborting the whole batch.
+
+Verified end-to-end against a local mock webhook shaped like an n8n
+response (`[{"output": "..."}]`) — real probe payload delivered, a real
+injection correctly flagged `vulnerable: true` by the detector, and a
+second run against an unreachable URL returned a clean per-probe error
+instead of crashing. `bx:http` does **not** throw on connection failure
+(unlike most BoxLang I/O) — it returns `statusCode`/`errorDetail` on the
+result struct, so `execute.bxm` checks those instead of try/catch.
+
+The two steps aren't wired together yet (the plan gives you probe ids as
+prose inside markdown; execute wants an explicit array) — the frontend is
+the place gluing them, by parsing the picked ids out of the plan or just
+letting the user pick which ones to run.
 
 ## Run
 
@@ -42,6 +95,10 @@ curl -s -X POST http://localhost:8081/api/run.bxm \
 agent's MCP tools to load — if it's not up yet when `core` starts, the
 agent still works but without ATLAS tools (bx-ai logs the connection
 failure and degrades gracefully instead of crashing).
+
+`core`'s container can reach a target running on your own machine (e.g. a
+local n8n instance) via `http://host.docker.internal:<port>` — wired in
+`docker-compose.yml` via `extra_hosts`.
 
 ## Gotchas found while building this (verified against the real images)
 
