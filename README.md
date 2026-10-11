@@ -7,6 +7,108 @@ propia carpeta bajo `services/`, sin tocar archivos compartidos.
 Ver [CLAUDE.md](./CLAUDE.md) pa contexto completo del reto, decisiones y
 estado del proyecto.
 
+## Para el jurado
+
+**Rexor** hace red-teaming automático a otra IA. Le describís tu bot en
+lenguaje natural ("quiero testear mi chatbot de soporte, tiene una tool de
+reembolsos y un RAG de políticas"), y la plataforma:
+
+1. consulta el catálogo oficial **MITRE ATLAS** (vía MCP) y elige qué
+   técnicas de ataque aplican a ese tipo de IA;
+2. arma un plan con probes concretos y justifica cada uno;
+3. los dispara contra el endpoint HTTP real de tu bot;
+4. evalúa cada respuesta de forma determinística (sin LLM, no alucina
+   hallazgos) y genera un reporte HTML con riesgo, cobertura ATLAS y
+   mitigaciones.
+
+### Cómo usamos BoxLang y BoxLang AI
+
+- `services/core` está escrito en **BoxLang** y es el orquestador de todo
+  el producto.
+- **BoxLang AI (`bx-ai`)** hace trabajo real, no decorativo:
+  - `aiAgent` con MiniMax arma el plan de ataque usando como tools el MCP
+    de `atlas-redteam` (catálogo ATLAS + corpus de probes).
+  - `MCPServer()` + `aiTool()` exponen las acciones de la plataforma
+    (`list_target_types`, `create_test_plan`, `run_probes`) como **MCP
+    propio**.
+  - Un segundo `aiAgent` (el asistente de chat) se conecta a ese MCP propio
+    y maneja la plataforma entera desde la conversación: pregunta lo que
+    falte, arma el plan y corre los ataques.
+- `services/reports` también es BoxLang: renderiza el reporte HTML.
+
+### Levantarlo
+
+Requisitos: Docker con Compose v2 y una shell bash (Linux, macOS, o WSL /
+Git Bash en Windows). Una API key de MiniMax.
+
+```bash
+git clone https://github.com/SalvadorGuerra777/Test.git && cd Test
+cp services/core/.env.example services/core/.env              # poné tu MINIMAX_API_KEY
+cp services/atlas-redteam/.env.example services/atlas-redteam/.env
+./scripts/compose.sh up --build -d
+```
+
+Abrí **http://localhost:5173**. La primera vez tarda unos minutos en
+construir las imágenes.
+
+| Servicio | URL local |
+|---|---|
+| frontend | http://localhost:5173 |
+| core (API + MCP propio) | http://localhost:8081 |
+| reports | http://localhost:8082 |
+| atlas-redteam (MCP) | http://localhost:8765 |
+
+### Probarlo
+
+**Necesitás un bot objetivo** con un endpoint HTTP que reciba JSON y
+responda JSON **en la misma request** (síncrono). Si tu bot corre en tu
+máquina, desde los contenedores se llega con
+`http://host.docker.internal:<puerto>`.
+
+**Opción A — Chat (vista por defecto):** escribí qué querés testear. Ejemplo:
+
+> Quiero testear mi chatbot de soporte. Recibe POST en
+> `http://host.docker.internal:5678/webhook/bot` con body
+> `{"mensaje": "..."}` y responde `[{"output": "..."}]`. Armá el plan y
+> corrélo.
+
+Si falta algo (tipo de bot, URL, formato del body, dónde viene la
+respuesta), el asistente lo pregunta. Al terminar muestra el resumen de
+hallazgos y un botón **View full report**.
+
+**Opción B — Formulario (toggle "Form" arriba a la derecha):** paso a paso.
+Elegís tipo de target y descripción → **Launch attack** genera el plan →
+marcás los probes, ponés URL, body template (con `{{PROMPT}}` donde va el
+ataque) y response path → **Run attacks on target** → **View report**.
+
+Todos los reportes quedan en la columna **Reports** de la derecha, y los
+chats en **History**. Sobreviven reinicios del stack.
+
+**Ojo con n8n:** si tu bot es un webhook de n8n en modo "Respond
+Immediately", la respuesta HTTP es solo un ack y todos los probes salen
+"defended" en falso. Usá un nodo **Respond to Webhook** al final del flujo
+que devuelva la respuesta real del LLM.
+
+### Limitaciones
+
+- El target tiene que ser request→response HTTP síncrono; canales asíncronos
+  (WhatsApp, colas) necesitan un webhook síncrono al frente.
+- Los probes de inyección indirecta (documentos, salida de tools) se mandan
+  como mensaje directo, porque el adapter solo conoce el endpoint de chat
+  del bot, no su RAG ni sus tools.
+- La evaluación es por reglas (canary, marcadores, patrones): sin falsos
+  positivos inventados por un LLM, pero puede no detectar fallas sutiles.
+- Sin autenticación ni multiusuario: pensado como herramienta local.
+- El plan lo genera un LLM y puede variar entre corridas.
+
+### Créditos
+
+- Equipo: **David Diaz** y **Salvador Guerra**.
+- Catálogo de técnicas y mitigaciones: [MITRE ATLAS](https://atlas.mitre.org).
+- [BoxLang](https://boxlang.io) y [BoxLang AI](https://ai.ortusbooks.com) de Ortus Solutions.
+- LLM: MiniMax vía `bx-ai`.
+- Hackathon ANIA x Ortus, Reto 05 "Break Me".
+
 ## Arquitectura
 
 ```mermaid
