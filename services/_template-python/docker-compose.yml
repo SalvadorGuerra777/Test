@@ -1,7 +1,7 @@
 services:
   change_me:
-    build: .
-    env_file: .env
+    build: ./services/_template-python
+    env_file: ./services/_template-python/.env
     ports:
       - "8000:8000"
     networks:

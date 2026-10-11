@@ -17,4 +17,4 @@ if [ ${#FILES[@]} -eq 0 ]; then
   exit 1
 fi
 
-docker compose "${FILES[@]}" "$@"
+docker compose --project-directory "$(pwd)" "${FILES[@]}" "$@"

@@ -1,7 +1,7 @@
 services:
   atlas-redteam:
-    build: .
-    env_file: .env
+    build: ./services/atlas-redteam
+    env_file: ./services/atlas-redteam/.env
     ports:
       - "8765:8765"
     networks:

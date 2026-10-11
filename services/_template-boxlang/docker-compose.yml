@@ -1,7 +1,7 @@
 services:
   change_me:
-    build: .
-    env_file: .env
+    build: ./services/_template-boxlang
+    env_file: ./services/_template-boxlang/.env
     ports:
       - "8080:8080"
     networks:

@@ -30,8 +30,12 @@ y `.env` (no se commitea). Nadie edita un compose/Dockerfile compartido.
 2. Renombrá la copia a `services/<tu-servicio>`.
 3. Reemplazá `change_me` por el nombre real del servicio en `docker-compose.yml`
    (y en `app/main.py` si es Python).
-4. Copiá `.env.example` a `.env` y ajustá valores.
-5. Elegí un puerto de host libre en tu `docker-compose.yml`.
+4. En `docker-compose.yml`, actualizá `build:` y `env_file:` pa que apunten
+   a `./services/<tu-servicio>/...` (no al nombre de la plantilla) — el
+   script de abajo levanta todos los servicios en un solo proyecto desde la
+   raíz del repo, así que las rutas son relativas a la raíz, no a tu carpeta.
+5. Copiá `.env.example` a `.env` y ajustá valores.
+6. Elegí un puerto de host libre en tu `docker-compose.yml`.
 
 ### Levantar todo
 

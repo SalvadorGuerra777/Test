@@ -1,7 +1,7 @@
 services:
   core:
-    build: .
-    env_file: .env
+    build: ./services/core
+    env_file: ./services/core/.env
     ports:
       - "8081:8080"
     extra_hosts:
