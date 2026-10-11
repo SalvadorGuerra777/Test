@@ -7,6 +7,16 @@ dist/
 .venv/
 venv/
 # Generated evaluation outputs
-reports/*.json
-reports/*.html
-!reports/.gitkeep
+**/reports/*.json
+**/reports/*.html
+!**/reports/.gitkeep
+
+# env files (cada quien tiene el suyo local)
+services/*/.env
+
+# os
+.DS_Store
+*:Zone.Identifier
+
+# material de referencia local, no es parte del proyecto
+*.pdf
