@@ -1,0 +1,16 @@
+{
+  "AML.T0051": "LLM01 · Prompt Injection",
+  "AML.T0051.000": "LLM01 · Prompt Injection",
+  "AML.T0051.001": "LLM01 · Prompt Injection (Indirect)",
+  "AML.T0054": "LLM01 · Prompt Injection (Jailbreak)",
+  "AML.T0056": "LLM07 · System Prompt Leakage",
+  "AML.T0057": "LLM02 · Sensitive Information Disclosure",
+  "AML.T0053": "LLM06 · Excessive Agency",
+  "AML.T0029": "LLM10 · Unbounded Consumption",
+  "AML.T0070": "LLM08 · Vector and Embedding Weaknesses",
+  "AML.T0084": "LLM07 · System Prompt Leakage",
+  "AML.T0040": "LLM04 · Data and Model Poisoning",
+  "AML.T0043": "LLM03 · Supply Chain",
+  "AML.T0048": "LLM09 · Misinformation",
+  "AML.T0049": "LLM05 · Improper Output Handling"
+}

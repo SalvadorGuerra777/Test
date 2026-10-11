@@ -1,0 +1,8 @@
+  </div>
+<bx:output>
+  <footer class="rx-r-foot">
+    <span>#encodeForHTML( report.target )# &middot; #encodeForHTML( report.generatedDate )#</span>
+    <span>Page #variables.pageNum# of #report.totalPages#</span>
+  </footer>
+</bx:output>
+</section>

@@ -1,132 +1,353 @@
-<!-- report-view.bxm - HTML security report template.
-     Expects an enriched `report` struct in scope (see ReportService.enrich()).
-     NOTE: in .bxm files every literal hash is written twice (two hashes) so the
-     parser does not treat it as an interpolation; dynamic values use a single hash. -->
+<!---
+  report-view.bxm — corporate security report, built on the Rexor design
+  system (brand tokens + rx-r-* report components, reproduced as static
+  HTML/CSS in assets/ — no client-side React needed to render).
+
+  Expects `report` (the enriched struct from ReportService.enrich()) and
+  `variables.bundleCss` / `variables.tokensCss` / `variables.markSvg` /
+  `variables.logoSvg` in scope. Self-contained: open in a browser and
+  File > Print > Save as PDF for the corporate PDF deliverable (US Letter,
+  816x1056px pages — see assets/bundle.css's @page rule).
+--->
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8">
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<bx:output><title>Reporte Red-Team ATLAS - #encodeForHTML( report.target )#</title></bx:output>
+<bx:output><title>Rexor — AI Red Team Assessment — #encodeForHTML( report.target )#</title>
+<style>#variables.tokensCss#</style>
+<style>#variables.bundleCss#</style>
+</bx:output>
 <style>
-  :root { color-scheme: light dark;
-    --bg:##f6f7f9; --card:##fff; --ink:##1a1d22; --mut:##5b6572; --line:##e3e6ea; }
-  @media (prefers-color-scheme: dark) { :root {
-    --bg:##0f1216; --card:##171b21; --ink:##e8ebef; --mut:##9aa6b3; --line:##262c34; } }
-  * { box-sizing:border-box; }
-  body { margin:0; font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-    background:var(--bg); color:var(--ink); padding:24px 16px; }
-  .wrap { max-width:1000px; margin:0 auto; }
-  h1 { font-size:22px; margin:0 0 2px; }
-  .sub { color:var(--mut); margin:0 0 20px; font-size:13px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
-    padding:18px 20px; margin-bottom:16px; }
-  .grid { display:grid; grid-template-columns:200px 1fr; gap:20px; align-items:center; }
-  @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
-  .gauge { text-align:center; }
-  .gauge .num { font-size:52px; font-weight:800; line-height:1; }
-  .gauge .band { display:inline-block; margin-top:6px; padding:3px 10px; border-radius:20px;
-    color:##fff; font-size:12px; font-weight:700; }
-  .chips { display:flex; flex-wrap:wrap; gap:8px; }
-  .chip { padding:5px 10px; border-radius:8px; border:1px solid; font-size:13px; }
-  .chip b { font-size:15px; }
-  .chip-ok { color:##2f7d4f; border-color:##2f7d4f; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--mut); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
-  code { background:rgba(128,128,128,.14); padding:1px 5px; border-radius:4px; font-size:12px; }
-  .pill { color:##fff; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; }
-  .bar { background:rgba(128,128,128,.18); border-radius:5px; height:9px; overflow:hidden; }
-  .bar i { display:block; height:100%; }
-  .ev { color:var(--mut); font-family:ui-monospace,monospace; }
-  .ok { text-align:center; color:##2f7d4f; padding:18px; }
-  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); margin:0 0 10px; }
-  ul { margin:4px 0; padding-left:18px; }
-  .foot { color:var(--mut); font-size:12px; text-align:center; margin-top:8px; }
-</style></head>
-<body><div class="wrap">
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+  body { background: var(--surface-sunken); }
+  .report-shell { display: grid; justify-items: center; gap: 32px; padding: 32px 0; }
+  .rx-r-cover-mark svg, .rx-r-cover-logo svg { width: 100%; height: 100%; display: block; }
+  .rx-print-fab { position: fixed; top: 20px; right: 20px; z-index: 50; }
+  @media print {
+    .report-shell { gap: 0; padding: 0; }
+    .rx-print-fab { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="report-shell">
 
+<bx:script>
+  coverSubtitle = "Automated adversarial assessment covering " & joinWithAnd( report.categoryLabels ) & "."
+  variables.pageTitle = "AI Red Team Assessment — " & report.target
+  variables.pageNum = 0
+</bx:script>
+
+<!--- ============================== Cover ============================== --->
+<section class="rx-r-page rx-r-cover">
+  <div class="rx-r-cover-band">
+    <bx:output><div class="rx-r-cover-mark">#variables.markSvg#</div></bx:output>
+    <svg class="rx-r-cover-visors" viewBox="0 0 240 152" aria-hidden="true">
+      <g><rect x="0" y="0" width="240" height="24" rx="12" class="rx-r-visor"></rect><circle cx="24" cy="12" r="7" class="rx-r-eye"></circle></g>
+      <g><rect x="0" y="40" width="240" height="24" rx="12" class="rx-r-visor"></rect><circle cx="88" cy="52" r="7" class="rx-r-eye"></circle></g>
+      <g><rect x="0" y="80" width="240" height="24" rx="12" class="rx-r-visor"></rect><circle cx="152" cy="92" r="7" class="rx-r-eye"></circle></g>
+      <g><rect x="0" y="120" width="240" height="24" rx="12" class="rx-r-visor"></rect><circle cx="216" cy="132" r="7" class="rx-r-eye"></circle></g>
+    </svg>
+    <bx:output><div class="rx-r-classif rx-r-classif-onband">#encodeForHTML( report.classification )#</div></bx:output>
+  </div>
+  <bx:output>
+  <div class="rx-r-cover-body">
+    <div class="rx-r-eyebrow">AI Red Team Assessment</div>
+    <h1 class="rx-r-cover-title">#encodeForHTML( report.target )# — Adversarial Security Assessment</h1>
+    <p class="rx-r-cover-sub">#encodeForHTML( coverSubtitle )#</p>
+    <dl class="rx-r-cover-meta">
+      <div><dt>Target</dt><dd>#encodeForHTML( report.target )#</dd></div>
+      <div><dt>Executed</dt><dd>#encodeForHTML( report.startedDisplay )#</dd></div>
+      <div><dt>Report ID</dt><dd>#encodeForHTML( report.reportId )#</dd></div>
+      <div><dt>Version</dt><dd>#encodeForHTML( report.version )#</dd></div>
+      <div><dt>Prepared by</dt><dd>#encodeForHTML( report.preparedBy )#</dd></div>
+      <div><dt>ATLAS catalog</dt><dd>#encodeForHTML( report.catalog_version )#</dd></div>
+    </dl>
+  </div>
+  </bx:output>
+  <bx:output>
+  <div class="rx-r-cover-foot">
+    <span class="rx-r-cover-logo">#variables.logoSvg#</span>
+    <span>This report contains sensitive security information. Distribution limited to the named recipients.</span>
+  </div>
+  </bx:output>
+</section>
+
+<!--- ========================= Document control ========================= --->
+<bx:script>variables.pageNum++;</bx:script>
+<bx:include template="partials/page-open.bxm">
 <bx:output>
-  <h1>Reporte de Seguridad - AI Red-Team</h1>
-  <p class="sub">Objetivo: <b>#encodeForHTML( report.target )#</b> ·
-     MITRE ATLAS #encodeForHTML( report.catalog_version )# ·
-     #encodeForHTML( report.started_at )# · #report.rounds# ronda(s)</p>
+  <h1>1. Document control</h1>
+  <table class="rx-r-table">
+    <tbody>
+      <tr><th>Report ID</th><td>#encodeForHTML( report.reportId )#</td></tr>
+      <tr><th>Version</th><td>#encodeForHTML( report.version )#</td></tr>
+      <tr><th>Classification</th><td>#encodeForHTML( report.classification )#</td></tr>
+      <tr><th>Prepared by</th><td>#encodeForHTML( report.preparedBy )#</td></tr>
+      <tr><th>Generated</th><td>#encodeForHTML( report.generatedDate )#</td></tr>
+      <tr><th>Evaluation executed</th><td>#encodeForHTML( report.startedDisplay )#</td></tr>
+      <tr><th>Rounds</th><td>#report.rounds#</td></tr>
+    </tbody>
+  </table>
+  <p class="rx-r-caption">Change history: not applicable — initial automated report.</p>
+</bx:output>
+<bx:include template="partials/page-close.bxm">
 
-  <div class="card"><div class="grid">
-    <div class="gauge">
-      <div class="num" style="color:#report.band.color#">#report.summary.risk_score#</div>
-      <div class="band" style="background:#report.band.color#">#report.band.label# risk</div>
-    </div>
-    <div>
-      <p style="margin:0 0 10px"><b>#report.summary.vulnerabilities#</b> de
-         <b>#report.summary.probes_run#</b> sondas penetraron el objetivo.</p>
-      <div class="chips">
-        <bx:if report.severityRows.len()>
-          <bx:loop array="#report.severityRows#" item="sv">
-            <span class="chip" style="color:#sv.color#;border-color:#sv.color#"><b>#sv.count#</b> #sv.sev#</span>
-          </bx:loop>
-        <bx:else>
-          <span class="chip chip-ok"><b>0</b> hallazgos</span>
-        </bx:if>
+<!--- ========================= Executive summary ========================= --->
+<bx:script>variables.pageNum++;</bx:script>
+<bx:include template="partials/page-open.bxm">
+<bx:output>
+  <div class="rx-r-eyebrow">Section 2</div>
+  <h1>2. Executive summary</h1>
+  <p>#encodeForHTML( report.execSummaryP1 )#</p>
+  <div class="rx-r-summary">
+    <div class="rx-r-kpis">
+      <div class="rx-r-kpi rx-r-kpi-rating rx-r-rate-#report.rating#">
+        <div class="rx-r-kpi-label">Overall risk</div>
+        <div class="rx-r-kpi-value">#report.ratingLabel#</div>
+        <div class="rx-r-kpi-sub">#report.scoreOf10# / 10</div>
+      </div>
+      <div class="rx-r-kpi">
+        <div class="rx-r-kpi-label">Attack success rate</div>
+        <div class="rx-r-kpi-value rx-r-num">#report.asr#%</div>
+        <div class="rx-r-kpi-sub">#report.summary.probes_run# attacks executed</div>
+      </div>
+      <div class="rx-r-kpi">
+        <div class="rx-r-kpi-label">Findings</div>
+        <div class="rx-r-kpi-value rx-r-num">#report.vulnFindings.len()#</div>
+        <div class="rx-r-kpi-sub">#report.counts.critical# critical &middot; #report.counts.high# high</div>
       </div>
     </div>
-  </div></div>
-
-  <div class="card">
-    <h2>Resultados por area de prueba</h2>
-    <table><thead><tr><th>Categoria</th><th>Penetradas</th><th></th></tr></thead>
-    <tbody>
-      <bx:loop array="#report.categoryRows#" item="cat">
-        <tr>
-          <td>#encodeForHTML( cat.category )#</td>
-          <td>#cat.vulnerable#/#cat.total#</td>
-          <td><div class="bar"><i style="width:#cat.pct#%;background:#report.band.color#"></i></div></td>
-        </tr>
-      </bx:loop>
-    </tbody></table>
-  </div>
-
-  <div class="card">
-    <h2>Cobertura de tecnicas MITRE ATLAS</h2>
-    <table><thead><tr><th>Tecnica</th><th>Nombre</th><th>Penetr./Probadas</th></tr></thead>
-    <tbody>
-      <bx:loop array="#report.atlasRows#" item="a">
-        <tr>
-          <td><code>#encodeForHTML( a.tid )#</code></td>
-          <td>#encodeForHTML( a.name )#</td>
-          <td>#a.vulnerable#/#a.tested#</td>
-        </tr>
-      </bx:loop>
-    </tbody></table>
-  </div>
-
-  <div class="card">
-    <h2>Hallazgos y remediacion</h2>
-    <table><thead><tr><th>Sev</th><th>Sonda</th><th>ATLAS</th><th>Hallazgo</th><th>Mitigaciones sugeridas</th></tr></thead>
-    <tbody>
-      <bx:if report.vulnFindings.len()>
-        <bx:loop array="#report.vulnFindings#" item="f">
-          <tr>
-            <td><span class="pill" style="background:#f.sevColor#">#f.severity#</span></td>
-            <td><b>#encodeForHTML( f.probe_name )#</b><br><small>#encodeForHTML( f.probe_id )# · #encodeForHTML( f.channel )#</small></td>
-            <td><code>#encodeForHTML( f.atlas_technique )#</code> #encodeForHTML( f.atlas_technique_name )#<br>
-                <small>Tacticas: #encodeForHTML( f.tactics )#</small></td>
-            <td>#encodeForHTML( f.rationale )#<br><small class="ev">#encodeForHTML( f.evidence )#</small></td>
-            <td>
-              <bx:if f.mitigations.len()>
-                <ul><bx:loop array="#f.mitigations#" item="m"><li>#encodeForHTML( m )#</li></bx:loop></ul>
-              <bx:else>
-                <em>Ver mitigaciones ATLAS</em>
-              </bx:if>
-            </td>
-          </tr>
-        </bx:loop>
-      <bx:else>
-        <tr><td colspan="5" class="ok">Sin vulnerabilidades detectadas - el objetivo defendio todas las sondas.</td></tr>
-      </bx:if>
-    </tbody></table>
-  </div>
-
-  <p class="foot">Generado por atlas-redteam (BoxLang) · evaluacion educativa de seguridad de IA ·
-     tecnicas y mitigaciones MITRE ATLAS (Apache-2.0)</p>
+    <figure class="rx-r-fig">
 </bx:output>
+      <div class="rx-r-sevbar">
+        <bx:loop array="#report.severityRows#" item="sv">
+          <bx:output><span class="rx-r-seg rx-r-seg-#sv.sev#" style="flex-grow:#sv.count#" title="#sv.label#: #sv.count#"></span></bx:output>
+        </bx:loop>
+      </div>
+      <ul class="rx-r-legend">
+        <bx:loop array="#report.severityRows#" item="sv">
+          <bx:output><li><i class="rx-r-sw rx-r-seg-#sv.sev#"></i><span>#sv.label#</span><b>#sv.count#</b></li></bx:output>
+        </bx:loop>
+      </ul>
+<bx:output>
+      <figcaption class="rx-r-caption">Figure 1 — Findings by severity</figcaption>
+    </figure>
+  </div>
+  <h2>Key recommendations</h2>
+  <p>#encodeForHTML( report.execSummaryP2 )#</p>
+</bx:output>
+  <bx:if report.topMitigations.len()>
+    <ol>
+    <bx:loop array="#report.topMitigations#" item="m">
+      <bx:output><li>#encodeForHTML( m )#</li></bx:output>
+    </bx:loop>
+    </ol>
+  </bx:if>
+<bx:include template="partials/page-close.bxm">
 
-</div></body></html>
+<!--- ======================= Scope & methodology ======================= --->
+<bx:script>variables.pageNum++;</bx:script>
+<bx:include template="partials/page-open.bxm">
+<bx:output>
+  <div class="rx-r-eyebrow">Section 3</div>
+  <h1>3. Scope &amp; methodology</h1>
+  <p>Rexor evaluated <strong>#encodeForHTML( report.target )#</strong> using automated adversarial
+     prompting, executing #report.summary.probes_run# tests across the following categories:
+     #encodeForHTML( joinWithAnd( report.categoryLabels ) )#.</p>
+  <p>Reference frameworks: OWASP Top 10 for LLM Applications 2025, MITRE ATLAS #encodeForHTML( report.catalog_version )#.</p>
+  <p>Evaluation window: #encodeForHTML( report.startedDisplay )#, #report.rounds# round(s).</p>
+  <h2>Out of scope</h2>
+  <p>Infrastructure penetration testing, physical security, and any channel not reachable through the configured target adapter.</p>
+</bx:output>
+<bx:include template="partials/page-close.bxm">
+
+<!--- =========================== Risk overview =========================== --->
+<bx:script>variables.pageNum++;</bx:script>
+<bx:include template="partials/page-open.bxm">
+<bx:output>
+  <div class="rx-r-eyebrow">Section 4</div>
+  <h1>4. Risk overview</h1>
+  <h2>Results by test category</h2>
+  <table class="rx-r-table">
+    <thead><tr><th>Category</th><th class="rx-r-num">Tests</th><th class="rx-r-num">Succeeded</th><th>Attack success rate</th></tr></thead>
+    <tbody>
+</bx:output>
+      <bx:loop array="#report.categoryRows#" item="c">
+        <bx:output>
+        <tr>
+          <td>#encodeForHTML( c.category )#</td>
+          <td class="rx-r-num">#c.tests#</td>
+          <td class="rx-r-num">#c.succeeded#</td>
+          <td><div class="rx-r-asr" title="#c.asr#%"><span class="rx-r-asr-track"><span class="rx-r-asr-fill" style="width:#c.barWidth#%"></span></span><span class="rx-r-num">#c.asr#%</span></div></td>
+        </tr>
+        </bx:output>
+      </bx:loop>
+<bx:output>
+    </tbody>
+  </table>
+  <p class="rx-r-caption">Figure 2 — Results by test category</p>
+  <h2>MITRE ATLAS technique coverage</h2>
+  <table class="rx-r-table">
+    <thead><tr><th>Technique</th><th>Name</th><th class="rx-r-num">Tested</th><th class="rx-r-num">Succeeded</th></tr></thead>
+    <tbody>
+</bx:output>
+      <bx:loop array="#report.atlasRows#" item="a">
+        <bx:output>
+        <tr><td><code>#encodeForHTML( a.tid )#</code></td><td>#encodeForHTML( a.name )#</td><td class="rx-r-num">#a.tested#</td><td class="rx-r-num">#a.vulnerable#</td></tr>
+        </bx:output>
+      </bx:loop>
+<bx:output>
+    </tbody>
+  </table>
+  <p class="rx-r-caption">Figure 3 — MITRE ATLAS technique coverage</p>
+</bx:output>
+<bx:include template="partials/page-close.bxm">
+
+<!--- =============================== Findings =============================== --->
+<bx:loop array="#report.vulnFindings#" item="f" index="idx">
+  <bx:script>variables.pageNum++;</bx:script>
+  <bx:include template="partials/page-open.bxm">
+  <bx:if idx EQ 1>
+    <bx:output>
+    <div class="rx-r-eyebrow">Section 5</div>
+    <h1>5. Findings</h1>
+    </bx:output>
+  </bx:if>
+  <bx:output>
+  <article class="rx-r-fd">
+    <div class="rx-r-fd-head">
+      <div class="rx-r-fd-badges">
+        <span class="rx-sev rx-sev-#f.severity#"><span class="rx-sev-dot"></span>#f.sevLabel#</span>
+        <code class="rx-r-fd-id">#encodeForHTML( f.id )#</code>
+      </div>
+      <h3 class="rx-r-fd-title">#encodeForHTML( f.title )#</h3>
+    </div>
+    <dl class="rx-r-fd-meta">
+      <bx:if len( f.owasp )><div><dt>OWASP LLM</dt><dd>#encodeForHTML( f.owasp )#</dd></div></bx:if>
+      <div><dt>MITRE ATLAS</dt><dd>#encodeForHTML( f.atlas )#</dd></div>
+      <div><dt>Target</dt><dd>#encodeForHTML( f.target )#</dd></div>
+      <div><dt>Reproducibility</dt><dd>#encodeForHTML( f.repro )#</dd></div>
+      <div><dt>Status</dt><dd>#encodeForHTML( f.status )#</dd></div>
+    </dl>
+    <div class="rx-r-fd-sec"><h4>Description</h4><p>#encodeForHTML( f.description )#</p></div>
+  </bx:output>
+    <bx:if f.evidence.len()>
+      <bx:output><div class="rx-r-fd-sec"><h4>Evidence</h4><div class="rx-r-ev"></bx:output>
+        <bx:loop array="#f.evidence#" item="turn">
+          <bx:output>
+            <div class="rx-r-ev-turn rx-r-ev-#turn.role#">
+              <div class="rx-r-ev-role"><bx:if turn.role EQ "model">Target &middot; response<bx:else>Rexor &middot; attack</bx:if></div>
+              <pre>#encodeForHTML( turn.text )#</pre>
+            </div>
+          </bx:output>
+        </bx:loop>
+      <bx:output></div></div></bx:output>
+    </bx:if>
+    <bx:output>
+    <div class="rx-r-fd-sec"><h4>Impact</h4><p>#encodeForHTML( f.impact )#</p></div>
+    <div class="rx-r-fd-sec"><h4>Remediation</h4><ol>
+    </bx:output>
+      <bx:loop array="#f.remediation#" item="m"><bx:output><li>#encodeForHTML( m )#</li></bx:output></bx:loop>
+    <bx:output>
+    </ol></div>
+    <div class="rx-r-fd-sec"><h4>References</h4><ul class="rx-r-refs">
+    </bx:output>
+      <bx:loop array="#f.references#" item="ref"><bx:output><li>#encodeForHTML( ref )#</li></bx:output></bx:loop>
+    <bx:output>
+    </ul></div>
+  </article>
+  </bx:output>
+  <bx:include template="partials/page-close.bxm">
+</bx:loop>
+
+<!--- ========================= Remediation plan ========================= --->
+<bx:script>variables.pageNum++;</bx:script>
+<bx:include template="partials/page-open.bxm">
+<bx:output>
+  <div class="rx-r-eyebrow">Section 6</div>
+  <h1>6. Remediation plan</h1>
+</bx:output>
+  <bx:if report.remediationRows.len()>
+    <bx:output>
+    <table class="rx-r-table">
+      <thead><tr><th>Priority</th><th>Finding</th><th>Action</th><th>Owner</th><th>Effort</th><th>Due</th></tr></thead>
+      <tbody>
+    </bx:output>
+      <bx:loop array="#report.remediationRows#" item="row">
+        <bx:output>
+        <tr>
+          <td><span class="rx-r-prio rx-r-prio-#lCase( row.priority )#">#row.priority#</span></td>
+          <td><code>#encodeForHTML( row.finding )#</code></td>
+          <td>#encodeForHTML( row.action )#</td>
+          <td>#encodeForHTML( row.owner )#</td>
+          <td>#row.effort#</td>
+          <td class="rx-r-num">#row.due#</td>
+        </tr>
+        </bx:output>
+      </bx:loop>
+    <bx:output></tbody></table></bx:output>
+  <bx:else>
+    <bx:output><p>No remediation items — the target defended every test in this evaluation.</p></bx:output>
+  </bx:if>
+<bx:include template="partials/page-close.bxm">
+
+<!--- ============================== Appendix ============================== --->
+<bx:script>variables.pageNum++;</bx:script>
+<bx:include template="partials/page-open.bxm">
+<bx:output>
+  <h1>7. Appendix</h1>
+  <h2>A. Probe catalog</h2>
+  <table class="rx-r-table">
+    <thead><tr><th>ID</th><th>Category</th><th>Severity</th><th>Result</th></tr></thead>
+    <tbody>
+</bx:output>
+      <bx:loop array="#report.appendixRows#" item="row">
+        <bx:output>
+        <tr>
+          <td><code>#encodeForHTML( row.id )#</code></td>
+          <td>#encodeForHTML( row.category )#</td>
+          <td><span class="rx-sev rx-sev-#row.severity#"><span class="rx-sev-dot"></span>#row.sevLabel#</span></td>
+          <td><span class="rx-pill rx-pill-#row.status#"><span class="rx-pill-dot"></span>#row.status EQ "vulnerable" ? "Vulnerable" : "Defended"#</span></td>
+        </tr>
+        </bx:output>
+      </bx:loop>
+<bx:output>
+    </tbody>
+  </table>
+  <p class="rx-r-caption">Figure 4 — Full probe catalog (every test executed)</p>
+</bx:output>
+<bx:include template="partials/page-close.bxm">
+
+<!--- ===================== Appendix: definitions & glossary ===================== --->
+<bx:script>variables.pageNum++;</bx:script>
+<bx:include template="partials/page-open.bxm">
+<bx:output>
+  <h2>B. Severity definitions</h2>
+  <table class="rx-r-table">
+    <thead><tr><th>Level</th><th>Score</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><span class="rx-sev rx-sev-critical"><span class="rx-sev-dot"></span>Critical</span></td><td class="rx-r-num">9.0&ndash;10.0</td><td>Reliably exploitable; sensitive data leakage or unauthorized actions in production.</td></tr>
+      <tr><td><span class="rx-sev rx-sev-high"><span class="rx-sev-dot"></span>High</span></td><td class="rx-r-num">7.0&ndash;8.9</td><td>Serious impact under moderate conditions, or critical impact that is hard to reproduce.</td></tr>
+      <tr><td><span class="rx-sev rx-sev-medium"><span class="rx-sev-dot"></span>Medium</span></td><td class="rx-r-num">4.0&ndash;6.9</td><td>Partial guardrail bypass; limited impact or requires chaining with another finding.</td></tr>
+      <tr><td><span class="rx-sev rx-sev-low"><span class="rx-sev-dot"></span>Low</span></td><td class="rx-r-num">0.1&ndash;3.9</td><td>Minor weakness or informational finding with some risk.</td></tr>
+      <tr><td><span class="rx-sev rx-sev-info"><span class="rx-sev-dot"></span>Info</span></td><td class="rx-r-num">0</td><td>Observation or best practice; not exploitable.</td></tr>
+    </tbody>
+  </table>
+  <h2>C. Glossary</h2>
+  <dl class="rx-r-fd-meta" style="grid-template-columns:1fr 1fr;">
+    <div><dt>ASR</dt><dd>Attack success rate — successful attacks &divide; attacks executed.</dd></div>
+    <div><dt>MITRE ATLAS</dt><dd>Adversarial Threat Landscape for AI Systems — MITRE's catalog of adversarial ML tactics and techniques.</dd></div>
+    <div><dt>OWASP LLM</dt><dd>OWASP Top 10 for LLM Applications — the industry-standard risk categories for LLM-based systems.</dd></div>
+    <div><dt>Vulnerable</dt><dd>The target performed the attacker's intent (disclosed data, ran an unauthorized action, or broke policy).</dd></div>
+    <div><dt>Defended</dt><dd>The target resisted the attack: refused, ignored it, or stayed within policy.</dd></div>
+  </dl>
+  <p class="rx-r-caption">Technique and mitigation data &copy; MITRE ATLAS (Apache-2.0). Generated by Rexor (atlas-redteam + BoxLang).</p>
+</bx:output>
+<bx:include template="partials/page-close.bxm">
+
+</div>
+<button type="button" class="rx-btn rx-btn-primary rx-btn-md rx-print-fab" onclick="window.print()">Download PDF</button>
+</body>
+</html>

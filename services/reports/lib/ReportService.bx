@@ -2,23 +2,56 @@
  * ReportService
  * -------------------------------------------------------------------------
  * BoxLang service that turns a red-team evaluation result (the JSON produced
- * by the Python `atlas-redteam` harness) into a styled HTML security report,
- * enriching each finding with MITRE ATLAS mitigations.
+ * by the Python `atlas-redteam` harness) into a corporate, B2B-grade
+ * security report, built on the Rexor design system (brand tokens +
+ * report components, reproduced as static HTML/CSS — see assets/).
  *
  * Usage (web):   see report.bxm
  * Usage (CLI):   boxlang lib/ReportService.bx <input.json> <output.html>
  * Usage (code):  svc = new lib.ReportService( expandPath("data/atlas-mitigations.json") )
  *                html = svc.render( jsonDeserialize( fileRead("samples/sample-report.json") ) )
+ *
+ * The returned HTML is a single self-contained document (brand CSS and
+ * logos inlined) sized as print-ready US Letter pages: open it in a
+ * browser and use File > Print > Save as PDF for the corporate PDF
+ * deliverable (see assets/bundle.css's @page / break-after rules).
  */
 class {
 
     property name="mitigations" type="struct";
+    property name="owaspMap" type="struct";
+    property name="bundleCss" type="string";
+    property name="tokensCss" type="string";
+    property name="markSvg" type="string";
+    property name="logoSvg" type="string";
 
     /**
-     * @mitigationsPath Optional path to atlas-mitigations.json (technique id -> [ "AML.Mxxxx — name" ]).
+     * @mitigationsPath Path to atlas-mitigations.json (technique id -> [ "AML.Mxxxx — name" ]).
+     *                   The OWASP crosswalk and brand assets are loaded from siblings of this
+     *                   service's own lib/ and data/ folders.
      */
     function init( string mitigationsPath = "" ) {
-        variables.mitigations = loadMitigations( arguments.mitigationsPath )
+        variables.mitigations = loadJsonMap( arguments.mitigationsPath )
+        variables.owaspMap    = loadJsonMap( len( arguments.mitigationsPath ) ? getDirectoryFromPath( arguments.mitigationsPath ) & "atlas-owasp-map.json" : "" )
+
+        var assetsDir = len( arguments.mitigationsPath ) ? getDirectoryFromPath( arguments.mitigationsPath ) & "../assets/" : ""
+        variables.bundleCss = fileExists( assetsDir & "bundle.css" ) ? fileRead( assetsDir & "bundle.css" ) : ""
+        variables.tokensCss = fileExists( assetsDir & "tokens.css" ) ? fileRead( assetsDir & "tokens.css" ) : ""
+        variables.markSvg   = fileExists( assetsDir & "rexor-mark-white.svg" ) ? fileRead( assetsDir & "rexor-mark-white.svg" ) : ""
+        variables.logoSvg   = fileExists( assetsDir & "rexor-logo.svg" ) ? fileRead( assetsDir & "rexor-logo.svg" ) : ""
+
+        variables.SEV_ORDER = [ "critical", "high", "medium", "low", "info" ]
+        variables.SEV_RANK  = { "critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4 }
+        variables.SEV_LABEL = { "critical": "Critical", "high": "High", "medium": "Medium", "low": "Low", "info": "Info" }
+        variables.IMPACT_BY_CATEGORY = {
+            "prompt_injection"         : "An attacker who controls any untrusted input (a direct message, a retrieved document, or a tool result) can override the system's instructions and change its behavior.",
+            "malicious_documents"      : "An attacker can embed hidden instructions in a document the system is asked to process, causing it to act on attacker-controlled content as if it were a trusted instruction.",
+            "tool_abuse"               : "An attacker can trigger unintended or unauthorized tool calls, extending the blast radius of a successful prompt injection beyond text output.",
+            "information_disclosure"   : "An attacker can extract confidential system instructions or internal data, enabling further targeted attacks or a direct confidentiality breach.",
+            "instruction_manipulation" : "An attacker can pressure the system into abandoning its operating policy, bypassing guardrails that were meant to hold under adversarial conditions.",
+            "resource_usage"           : "An attacker can force unbounded or looping output, degrading service quality or inflating operating cost (denial of AI service).",
+            "unauthorized_actions"     : "An attacker can cause the system to perform state-changing or destructive actions without authorization."
+        }
         return this
     }
 
@@ -26,7 +59,7 @@ class {
     function main( args = [] ) {
         var inPath  = args.len() >= 1 ? args[ 1 ] : "samples/sample-report.json"
         var outPath = args.len() >= 2 ? args[ 2 ] : "report.html"
-        variables.mitigations = loadMitigations( expandPath( "data/atlas-mitigations.json" ) )
+        init( expandPath( "data/atlas-mitigations.json" ) )
         renderToFile( jsonDeserialize( fileRead( inPath ) ), outPath )
         println( "Wrote " & outPath & " from " & inPath )
     }
@@ -38,6 +71,7 @@ class {
     /** Render a report struct to an HTML string. */
     string function render( required struct report ) {
         variables.report = enrich( arguments.report )
+        variables.pageNum = 0
         var html = ""
         bx:savecontent variable="html" {
             include "report-view.bxm"
@@ -59,86 +93,224 @@ class {
         var r = arguments.report
         var s = r.summary
 
-        // Risk band + color
-        r[ "band" ] = riskBand( s.risk_score )
+        r[ "classification" ] = "CONFIDENTIAL"
+        r[ "generatedDate" ]  = dateFormat( now(), "MMMM d, yyyy" )
+        r[ "startedDisplay" ] = displayDate( r.started_at )
+        r[ "reportId" ]       = "RX-RPT-" & dateFormat( now(), "yyyy" ) & "-" & uCase( left( hash( r.target & r.started_at, "MD5" ), 4 ) )
+        r[ "version" ]        = "1.0 · Automated"
+        r[ "preparedBy" ]     = "Rexor automated red-team engine (atlas-redteam + BoxLang)"
 
-        // Severity chips in fixed order (only those present)
-        var order = [ "critical", "high", "medium", "low", "info" ]
+        // Severity counts in fixed order (only those present) — fed to the severity bar / KPIs.
+        r[ "counts" ] = {}
         r[ "severityRows" ] = []
-        for ( var sev in order ) {
-            if ( structKeyExists( s.by_severity, sev ) ) {
-                r.severityRows.append( { "sev": sev, "count": s.by_severity[ sev ], "color": sevColor( sev ) } )
-            }
+        for ( var sev in variables.SEV_ORDER ) {
+            var n = structKeyExists( s.by_severity, sev ) ? s.by_severity[ sev ] : 0
+            r.counts[ sev ] = n
+            if ( n > 0 ) r.severityRows.append( { "sev": sev, "label": variables.SEV_LABEL[ sev ], "count": n } )
         }
 
-        // Results by test area
+        r[ "asr" ] = s.probes_run > 0 ? numberFormat( s.vulnerabilities / s.probes_run * 100, "0.0" ) : "0.0"
+        r[ "scoreOf10" ] = numberFormat( s.risk_score / 10, "0.0" )
+
+        // Results by test area (category) — alphabetical for the table, plus a
+        // "most affected" ranking (by vulnerable count) for the narrative.
         r[ "categoryRows" ] = []
         for ( var cat in s.by_category ) {
-            var c   = s.by_category[ cat ]
-            var pct = c.total > 0 ? round( c.vulnerable / c.total * 100 ) : 0
-            r.categoryRows.append( { "category": cat, "vulnerable": c.vulnerable, "total": c.total, "pct": pct } )
+            var c = s.by_category[ cat ]
+            var asrVal = c.total > 0 ? ( c.vulnerable / c.total * 100 ) : 0
+            r.categoryRows.append( {
+                "id": cat, "category": humanize( cat ),
+                "tests": c.total, "succeeded": c.vulnerable,
+                "asr": numberFormat( asrVal, "0.0" ),
+                "barWidth": c.vulnerable > 0 ? max( asrVal, 2 ) : 0
+            } )
         }
         r.categoryRows.sort( ( a, b ) -> compareNoCase( a.category, b.category ) )
+        var topCategories = r.categoryRows.filter( ( c ) -> c.succeeded > 0 )
+        topCategories.sort( ( a, b ) -> b.succeeded - a.succeeded )
+        r[ "topCategories" ] = topCategories.len() > 2 ? [ topCategories[ 1 ], topCategories[ 2 ] ] : topCategories
+        r[ "categoryLabels" ] = r.categoryRows.map( ( c ) -> c.category )
 
         // ATLAS technique coverage
         r[ "atlasRows" ] = []
         for ( var tid in r.atlas_coverage ) {
             var a = r.atlas_coverage[ tid ]
-            r.atlasRows.append( { "tid": tid, "name": a.name, "tested": a.tested, "vulnerable": a.vulnerable } )
+            r.atlasRows.append( {
+                "tid": tid, "name": a.name, "tested": a.tested, "vulnerable": a.vulnerable,
+                "asr": a.tested > 0 ? numberFormat( a.vulnerable / a.tested * 100, "0.0" ) : "0.0"
+            } )
         }
         r.atlasRows.sort( ( a, b ) -> compareNoCase( a.tid, b.tid ) )
 
-        // Vulnerable findings, enriched with ATLAS mitigations
-        r[ "vulnFindings" ] = []
+        // Full probe catalog (appendix) — every probe run, vulnerable or defended.
+        r[ "appendixRows" ] = []
         for ( var f in r.findings ) {
-            if ( f.vulnerable ) {
-                var mits = variables.mitigations.keyExists( f.atlas_technique ) ? variables.mitigations[ f.atlas_technique ] : []
-                var tactics = ( f.keyExists( "atlas_tactics" ) && f.atlas_tactics.len() ) ? f.atlas_tactics.toList( ", " ) : "—"
-                r.vulnFindings.append( {
-                    "severity"            : f.severity,
-                    "sevColor"            : sevColor( f.severity ),
-                    "probe_name"          : f.probe_name,
-                    "probe_id"            : f.probe_id,
-                    "channel"             : f.channel,
-                    "atlas_technique"     : f.atlas_technique,
-                    "atlas_technique_name": f.atlas_technique_name,
-                    "tactics"             : tactics,
-                    "rationale"           : f.rationale,
-                    "evidence"            : left( f.keyExists( "evidence" ) ? f.evidence : "", 90 ),
-                    "mitigations"         : mits
-                } )
+            r.appendixRows.append( {
+                "id": f.probe_id, "category": humanize( f.category ), "severity": f.severity,
+                "sevLabel": variables.SEV_LABEL.keyExists( f.severity ) ? variables.SEV_LABEL[ f.severity ] : f.severity,
+                "status": f.vulnerable ? "vulnerable" : "defended"
+            } )
+        }
+        r.appendixRows.sort( ( a, b ) -> compareNoCase( a.id, b.id ) )
+
+        // Collect every literal secret-looking "evidence" value across ALL findings (not just
+        // this one) so a secret leaked under one probe is also masked if it resurfaces in the
+        // transcript of another (e.g. a tool-abuse finding whose own evidence is an action list).
+        var secretSet = {}
+        for ( var f0 in r.findings ) {
+            if ( f0.keyExists( "evidence" ) ) {
+                var ev0 = f0.evidence
+                if ( len( ev0 ) >= 6 && left( ev0, 1 ) != "[" && !reFindNoCase( "^response_len", ev0 ) ) secretSet[ ev0 ] = true
             }
         }
+        var knownSecrets = secretSet.keyArray()
+
+        // Vulnerable findings -> one FindingDetail per probe, ordered by severity then id.
+        r[ "vulnFindings" ] = []
+        for ( var f in r.findings ) {
+            if ( !f.vulnerable ) continue
+            var technique = f.atlas_technique
+            var mits      = variables.mitigations.keyExists( technique ) ? variables.mitigations[ technique ] : []
+            var owasp     = variables.owaspMap.keyExists( technique ) ? variables.owaspMap[ technique ] : ""
+            var tactics   = ( f.keyExists( "atlas_tactics" ) && f.atlas_tactics.len() ) ? f.atlas_tactics.toList( ", " ) : ""
+            var refs      = [ "MITRE ATLAS " & technique & " — " & f.atlas_technique_name ]
+            if ( len( owasp ) ) refs.append( "OWASP Top 10 for LLM Applications 2025 — " & owasp )
+
+            r.vulnFindings.append( {
+                "id"            : f.probe_id,
+                "title"         : titleFromRationale( f ),
+                "severity"      : f.severity,
+                "sevLabel"      : variables.SEV_LABEL.keyExists( f.severity ) ? variables.SEV_LABEL[ f.severity ] : f.severity,
+                "sevRank"       : variables.SEV_RANK.keyExists( f.severity ) ? variables.SEV_RANK[ f.severity ] : 9,
+                "owasp"         : owasp,
+                "atlas"         : technique & " · " & f.atlas_technique_name & ( len( tactics ) ? " (" & tactics & ")" : "" ),
+                "target"        : r.target & ( len( f.channel ) ? " / " & humanize( f.channel ) : "" ),
+                "repro"         : "Round " & ( f.round + 1 ) & " of " & r.rounds,
+                "status"        : "Open",
+                "description"   : f.probe_name & " — " & humanize( f.category ) & " probe over the " & lCase( humanize( f.channel ) ) & " channel. " & trimPeriod( f.rationale ) & ".",
+                "evidence"      : f.keyExists( "response_excerpt" ) && len( f.response_excerpt )
+                                    ? [ { "role": "model", "text": redact( f.response_excerpt, knownSecrets ) } ]
+                                    : [],
+                "impact"        : variables.IMPACT_BY_CATEGORY.keyExists( f.category ) ? variables.IMPACT_BY_CATEGORY[ f.category ] : "This weakness increases the system's overall attack surface and should be remediated before production use.",
+                "mitigations"   : mits,
+                "remediation"   : mits.len() ? mits : [ "Review MITRE ATLAS mitigations for " & technique & " and apply applicable controls." ],
+                "references"    : refs
+            } )
+        }
+        r.vulnFindings.sort( ( a, b ) -> a.sevRank != b.sevRank ? a.sevRank - b.sevRank : compareNoCase( a.id, b.id ) )
+
+        // Overall rating: the most severe reproducible finding, not an average (per brand guide).
+        r[ "rating" ] = r.vulnFindings.len() ? r.vulnFindings[ 1 ].severity : "info"
+        r[ "ratingLabel" ] = variables.SEV_LABEL.keyExists( r.rating ) ? variables.SEV_LABEL[ r.rating ] : "Info"
+
+        // Key recommendations: the 3 most-cited mitigations across all vulnerable findings.
+        var mitCount = {}
+        for ( var vf in r.vulnFindings ) {
+            for ( var m in vf.mitigations ) mitCount[ m ] = ( mitCount.keyExists( m ) ? mitCount[ m ] : 0 ) + 1
+        }
+        var mitPairs = []
+        for ( var mkey in mitCount ) mitPairs.append( { "name": mkey, "count": mitCount[ mkey ] } )
+        mitPairs.sort( ( a, b ) -> b.count - a.count )
+        var mitKeys = mitPairs.map( ( p ) -> p.name )
+        r[ "topMitigations" ] = mitKeys.len() > 3 ? mitKeys.slice( 1, 3 ) : mitKeys
+
+        // Executive summary narrative — derived only from real data, never invented specifics.
+        r[ "execSummaryP1" ] = "On " & r.startedDisplay & ", Rexor executed " & s.probes_run & " adversarial tests against "
+            & r.target & " across " & r.categoryRows.len() & " categor" & ( r.categoryRows.len() == 1 ? "y" : "ies" )
+            & ", drawing techniques from the MITRE ATLAS " & r.catalog_version & " catalog. " & s.vulnerabilities & " of "
+            & s.probes_run & " tests (" & r.asr & "%) succeeded, giving the system an overall risk rating of " & r.ratingLabel & "."
+        if ( r.vulnFindings.len() == 0 ) {
+            r[ "execSummaryP2" ] = "No successful attacks were observed in this evaluation window. Continue periodic retesting as the target, its prompts, and its tools evolve."
+        } else {
+            var focusCats = r.topCategories.map( ( c ) -> c.category )
+            r[ "execSummaryP2" ] = "The most urgent issues are concentrated in " & joinWithAnd( focusCats )
+                & ". Addressing the remediation plan below, starting with the P0 items, would materially reduce exploitable risk before production deployment."
+        }
+
+        // Remediation plan — one row per vulnerable finding.
+        r[ "remediationRows" ] = []
+        for ( var vf in r.vulnFindings ) {
+            var priority = vf.severity == "critical" ? "P0" : vf.severity == "high" ? "P1" : vf.severity == "medium" ? "P2" : "P3"
+            r.remediationRows.append( {
+                "priority": priority,
+                "finding" : vf.id,
+                "action"  : "Apply " & vf.remediation[ 1 ],
+                "owner"   : "Engineering",
+                "effort"  : ( vf.severity == "critical" || vf.severity == "high" ) ? "M" : "S",
+                "due"     : priority == "P0" ? dateFormat( dateAdd( "d", 7, now() ), "MMM d" )
+                          : priority == "P1" ? dateFormat( dateAdd( "d", 30, now() ), "MMM d" )
+                          : priority == "P2" ? dateFormat( dateAdd( "d", 90, now() ), "MMM d" )
+                          : "Backlog"
+            } )
+        }
+
+        // Pagination: one ReportPage per section (doc control, exec summary, scope,
+        // risk overview, remediation, appendix probe catalog, appendix glossary = 7)
+        // plus one per finding — used for "Page n of m".
+        r[ "totalPages" ] = 7 + r.vulnFindings.len()
+
         return r
     }
 
     // --------------------------------------------------------------------- //
-    // Presentation helpers. Note: "##xxxxxx" in a BoxLang string is the
-    // escaped form that yields the literal "#xxxxxx" hex color at runtime.
+    // Presentation helpers
     // --------------------------------------------------------------------- //
 
-    struct function riskBand( numeric score ) {
-        if ( arguments.score >= 80 ) return { "label": "Critical", "color": "##b4232c" }
-        if ( arguments.score >= 60 ) return { "label": "Severe",   "color": "##d9641e" }
-        if ( arguments.score >= 40 ) return { "label": "Elevated", "color": "##d9641e" }
-        if ( arguments.score >= 20 ) return { "label": "Moderate", "color": "##c99700" }
-        if ( arguments.score >   0 ) return { "label": "Low",      "color": "##2f7d4f" }
-        return { "label": "Minimal", "color": "##2f7d4f" }
+    /** snake_case / tool_result -> "Snake case" */
+    string function humanize( required string value ) {
+        var words = listToArray( arguments.value, "_" )
+        var out = []
+        for ( var w in words ) out.append( out.len() == 0 ? capFirst( w ) : lCase( w ) )
+        return out.toList( " " )
     }
 
-    string function sevColor( required string sev ) {
-        var m = {
-            "critical": "##b4232c", "high": "##d9641e", "medium": "##c99700",
-            "low": "##2f7d4f", "info": "##4a6a8a"
+    string function capFirst( required string value ) {
+        return arguments.value.len() ? uCase( left( arguments.value, 1 ) ) & right( arguments.value, len( arguments.value ) - 1 ) : arguments.value
+    }
+
+    string function trimPeriod( required string value ) {
+        var v = trim( arguments.value )
+        return right( v, 1 ) == "." ? left( v, len( v ) - 1 ) : v
+    }
+
+    string function titleFromRationale( required struct finding ) {
+        var base = ( finding.keyExists( "rationale" ) && len( trim( finding.rationale ) ) ) ? finding.rationale : finding.probe_name
+        return capFirst( trimPeriod( base ) )
+    }
+
+    /** Masks every known literal secret found inside a response excerpt, then trims it. */
+    string function redact( required string excerpt, array secrets = [] ) {
+        var text = arguments.excerpt
+        for ( var ev in arguments.secrets ) {
+            if ( findNoCase( ev, text ) ) {
+                var masked = len( ev ) <= 8 ? "••••" : ( left( ev, 3 ) & "••••" & right( ev, 3 ) )
+                text = replaceNoCase( text, ev, masked, "all" )
+            }
         }
-        return m.keyExists( arguments.sev ) ? m[ arguments.sev ] : "##888888"
+        return len( text ) > 480 ? left( text, 480 ) & "…" : text
+    }
+
+    string function joinWithAnd( required array items ) {
+        var n = arguments.items.len()
+        if ( n == 0 ) return ""
+        if ( n == 1 ) return arguments.items[ 1 ]
+        if ( n == 2 ) return arguments.items[ 1 ] & " and " & arguments.items[ 2 ]
+        return arguments.items.slice( 1, n - 1 ).toList( ", " ) & ", and " & arguments.items[ n ]
+    }
+
+    string function displayDate( required string raw ) {
+        try {
+            return dateFormat( parseDateTime( arguments.raw ), "MMMM d, yyyy" ) & " at " & timeFormat( parseDateTime( arguments.raw ), "h:mm a" )
+        } catch ( any e ) {
+            return arguments.raw
+        }
     }
 
     // --------------------------------------------------------------------- //
     // Internals
     // --------------------------------------------------------------------- //
 
-    private struct function loadMitigations( string path = "" ) {
+    private struct function loadJsonMap( string path = "" ) {
         if ( len( arguments.path ) && fileExists( arguments.path ) ) {
             return jsonDeserialize( fileRead( arguments.path ) )
         }

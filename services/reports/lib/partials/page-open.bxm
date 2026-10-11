@@ -1,0 +1,10 @@
+<!--- Opens one printed Letter page (ReportPage equivalent). Caller sets
+      variables.pageTitle and bumps variables.pageNum before including this. --->
+<section class="rx-r-page">
+<bx:output>
+  <header class="rx-r-head">
+    <span class="rx-r-head-title">#encodeForHTML( variables.pageTitle )#</span>
+    <span class="rx-r-classif">#encodeForHTML( report.classification )#</span>
+  </header>
+</bx:output>
+  <div class="rx-r-body">

@@ -8,8 +8,8 @@
  * so this works whether or not the runtime includes it.
  */
 args = CLIGetArgs().positionals.filter( ( a ) => len( a ) < 4 || lCase( right( a, 4 ) ) != ".bxs" )
-inPath  = args.len() >= 1 ? args[ 1 ] : "samples/sample-report.json"
-outPath = args.len() >= 2 ? args[ 2 ] : "report.html"
+inPath  = args.len() >= 1 ? expandPath( args[ 1 ] ) : expandPath( "samples/sample-report.json" )
+outPath = args.len() >= 2 ? expandPath( args[ 2 ] ) : expandPath( "report.html" )
 
 svc = new lib.ReportService( expandPath( "data/atlas-mitigations.json" ) )
 svc.renderToFile( jsonDeserialize( fileRead( inPath ) ), outPath )

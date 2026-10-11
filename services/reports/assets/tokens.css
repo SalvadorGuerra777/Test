@@ -1,0 +1,74 @@
+/* Rexor design tokens — generated for the report microservice (light theme only).
+   PDF/print always renders light, per project/REPORTS.md. Source: the Rexor
+   design system's tokens.json (color, type, spacing, radius, shadow, page). */
+:root {
+  /* Surfaces & ink */
+  --surface: #fbfafa;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f4f1f2;
+  --line: #e8e3e5;
+  --line-strong: #8c8287;
+  --ink: #1b1417;
+  --ink-muted: #5e5459;
+
+  /* Brand */
+  --crimson: #c8102e;
+  --crimson-strong: #a00c24;
+  --crimson-soft: #fde9ec;
+  --crimson-deep: #5c0716;
+  --on-crimson: #ffffff;
+  --on-crimson-deep: #ffffff;
+  --link: var(--crimson);
+  --focus-ring: var(--crimson);
+
+  /* Severity */
+  --sev-critical: #9f1239;      --sev-critical-soft: #ffe4ea;
+  --sev-high: #c2410c;          --sev-high-soft: #ffedd5;
+  --sev-medium: #8a5a00;        --sev-medium-soft: #fdf3d7;
+  --sev-low: #1d4ed8;           --sev-low-soft: #e3ebfd;
+  --sev-info: #475569;          --sev-info-soft: #eef1f5;
+  --field-invalid: var(--sev-critical);
+
+  /* Success / defended */
+  --defended: #0f6e74;
+  --defended-soft: #dcf3f3;
+
+  /* Charts */
+  --chart-critical: #8b0f33;
+  --chart-high: #e0521f;
+  --chart-medium: #f2b632;
+  --chart-low: #5b8def;
+  --chart-info: #b8c0cc;
+  --chart-track: #efeaec;
+
+  /* Scrollbars */
+  --scrollbar-thumb: var(--line-strong);
+  --scrollbar-thumb-hover: var(--ink-muted);
+  --scrollbar-track: rgba(0, 0, 0, 0);
+  --scrollbar-size: 10px;
+
+  /* Overlay */
+  --overlay: rgba(27, 20, 23, 0.48);
+
+  /* Type */
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Spacing (4px grid) */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px; --space-12: 48px;
+
+  /* Radius */
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 22px; --radius-full: 999px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(27, 20, 23, 0.06);
+  --shadow-md: 0 8px 24px rgba(27, 20, 23, 0.10);
+
+  /* Report page geometry — US Letter at 96dpi. A4: 794x1123, same margin. */
+  --page-width: 816px;
+  --page-height: 1056px;
+  --page-margin: 64px;
+  --page-content: 688px;
+}

@@ -3,5 +3,5 @@
  * Uso:  boxlang demo.bxs
  */
 svc = new lib.ReportService( expandPath( "data/atlas-mitigations.json" ) )
-svc.renderToFile( jsonDeserialize( fileRead( "samples/sample-report.json" ) ), "reporte.html" )
+svc.renderToFile( jsonDeserialize( fileRead( expandPath( "samples/sample-report.json" ) ) ), expandPath( "reporte.html" ) )
 println( "OK -> wrote reporte.html" )
