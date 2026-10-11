@@ -176,6 +176,9 @@ class {
                 "by_category"    : byCategory
             },
             "atlas_coverage": atlasCoverage,
+            // Field-for-field the harness's Finding dataclass
+            // (atlas_redteam/harness.py) - the reports service reads
+            // `round` and `response_excerpt` on every vulnerable finding.
             "findings": reportFindings.map( ( f ) => ( {
                 "probe_id"            : f.probe_id,
                 "probe_name"          : f.probe_name,
@@ -184,9 +187,12 @@ class {
                 "severity"            : f.severity,
                 "atlas_technique"     : f.atlas_technique,
                 "atlas_technique_name": f.atlas_technique_name,
+                "atlas_tactics"       : f.atlas_tactics ?: [],
                 "vulnerable"          : f.vulnerable,
                 "rationale"           : f.rationale,
-                "evidence"            : f.evidence ?: ""
+                "evidence"            : f.evidence ?: "",
+                "response_excerpt"    : left( f.targetResponse ?: "", 600 ),
+                "round"               : 0
             } ) )
         };
 

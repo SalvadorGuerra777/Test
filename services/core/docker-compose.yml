@@ -6,8 +6,16 @@ services:
       - "8081:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Chat transcripts and archived reports live here - a named volume so
+    # they survive `compose up --build` (the container's own filesystem is
+    # thrown away on every rebuild).
+    volumes:
+      - core-data:/app/data
     networks:
       - microservices
+
+volumes:
+  core-data:
 
 networks:
   microservices:
