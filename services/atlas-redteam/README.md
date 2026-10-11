@@ -57,9 +57,22 @@ content that gives uplift to actual misuse.
 | Poisoned tool output | `AML.T0051` | tool abuse |
 | System-prompt extraction | `AML.T0056` Extract LLM System Prompt | information disclosure |
 | Incremental disclosure | `AML.T0057` LLM Data Leakage | information disclosure |
+| System-prompt extraction (Spanish) | `AML.T0056` | information disclosure |
+| Credential / environment disclosure | `AML.T0055` Unsecured Credentials | information disclosure |
+| Agent configuration discovery | `AML.T0084` Discover AI Agent Configuration | information disclosure |
+| Obfuscated extraction (encoding) | `AML.T0057` | information disclosure |
 | Scope override | `AML.T0054` | instruction manipulation |
 | Unbounded output | `AML.T0029` Denial of AI Service | excessive resource usage |
 | Unauthorized action | `AML.T0053` LLM Plugin Compromise | unauthorized actions |
+
+> **Scoring note.** `judge_response`'s detectors are **heuristic** — they fire
+> on the planted canary/marker/action tokens above, which is ideal for the
+> offline mock but means a *real* target that leaks its actual prompt/secrets
+> without echoing our marker scores clean. The `core` orchestrator therefore
+> scores real-target replies with **two extra judges** on top of this one — a
+> deterministic user-supplied-secrets check and a semantic LLM judge
+> (bx-ai) — OR-combined. See `services/core/README.md` → *Scoring: three
+> judges*.
 
 ## Install & run
 

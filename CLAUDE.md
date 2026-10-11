@@ -202,9 +202,57 @@ No es un bug de `execute.bxm`; es un requisito de cómo tiene que estar
 configurado cualquier target para que el modelo request→response de Rexor
 funcione. Mencionarlo en la demo/README si alguien más conecta un n8n.
 
+## Juez: 3 señales, no 1 (fix de falso negativo en targets reales)
+
+Síntoma: metías una IA que SABÍAS que tenía information disclosure y salía
+limpia. Causa: `judge_response` de `atlas-redteam` es **heurístico** — solo
+detecta dos strings plantados (`CANARY-7F3A-...`, que solo vive en el mock,
+y el marcador `ZEBRA-INJECTED-OK`, que un bot real solo repite si es
+inyectable justo así). Un target real que filtra su system prompt / keys /
+PII / config real nunca contiene esos strings → `vulnerable: false`, falso
+negativo silencioso.
+
+Fix en `core` (`Executor.scoreResponse`): cada respuesta del target se
+puntúa con **tres jueces OR-combinados** (vulnerable si cualquiera dispara;
+las señales determinísticas nunca se debilitan, el LLM solo convierte un
+miss en hit):
+1. **Heurístico** — `judge_response` (MCP), como antes.
+2. **Secrets** (`Executor.secretLeaked`) — determinístico. El caller pasa
+   `secrets: [...]` (strings que el target nunca debe soltar: línea del
+   system prompt, key plantada, valor interno real). Match case-insensitive
+   = leak, cero falsos positivos; el valor va **enmascarado** en la evidencia.
+3. **Juez LLM** (`models/Judge.bx`) — semántico. Llamada MiniMax (bx-ai
+   `aiChat`, `temperature: 0`) que lee intención del ataque + respuesta y
+   decide si el target fue explotado. Parse JSON defensivo: si el juez cae,
+   devuelve *no vulnerable, `available:false`* → nunca inventa un hallazgo.
+   **Es un segundo uso real de bx-ai en el producto**, dentro del loop de
+   evaluación (refuerza requisito #2 del reto).
+
+Cada finding trae `judges: { heuristic, secrets, llm: {...} }` pa ver qué
+disparó. `secrets` es opcional (default `[]`): por `execute.bxm` y el form
+classic como array (una línea por string en la UI), por el tool `run_probes`
+como string JSON-array.
+
+Además: `runProbes` ahora tiene `attemptsPerProbe` (default 2) — 1er intento
+= payload literal (one-shot idéntico a antes), si se defiende reintenta el
+mismo objetivo ATLAS con otra envoltura (`Executor.mutations`), para cuando
+el `MockAgent` original no breacheaba a la primera. 4 probes nuevos de
+extracción en el corpus (`INFO-003` español, `INFO-004` credenciales
+AML.T0055, `INFO-005` config discovery AML.T0084, `INFO-006` base64/bypass).
+`MockAgent._asks_for_note` extendido (español + credenciales + tooling) pa
+que el fixture siga 100% vulnerable; 6/6 tests de atlas pasan.
+
+Verificado e2e: mock que filtra prompt+key → `heuristic:false` en todo
+(el miss del juez viejo) pero `vulnerable:true` por secrets+LLM, risk 100,
+reporte renderiza; mock defendido → risk 0, cero falsos positivos,
+`attempts:2`. Detalle en
+[services/core/README.md](./services/core/README.md) → *Scoring: three judges*.
+
 ## Decisiones pendientes / siguiente paso
 
 - ~~Conseguir una `MINIMAX_API_KEY` real~~ — ya la tenemos, demo funcionando.
+- ~~El juez salía limpio con IAs que sí tenían information disclosure~~ —
+  resuelto: juez de 3 señales (heurístico + secrets + LLM), ver sección arriba.
 - ~~Ejecución real de probes contra el target~~ — hecho (`execute.bxm`).
 - ~~Reacomodar `boxlang-reports/`~~ — hecho, es `services/reports/`.
 - ~~Conectar el reporte final~~ — hecho, botón "Generate report" en el

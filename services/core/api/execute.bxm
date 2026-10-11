@@ -26,6 +26,7 @@ if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
     probeIds   = ( !parseFailed && isArray( body.probeIds ?: "" ) ) ? body.probeIds : [];
     adapter    = body.targetAdapter ?: {};
     targetName = len( trim( body.target ?: "" ) ) ? body.target : ( adapter.url ?: "target" );
+    secrets    = ( !parseFailed && isArray( body.secrets ?: "" ) ) ? body.secrets : [];
 
     if ( parseFailed || probeIds.isEmpty() || !structKeyExists( adapter, "url" ) || !structKeyExists( adapter, "bodyTemplate" ) ) {
         bx:header statusCode=400;
@@ -37,7 +38,7 @@ if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
     } else {
 
         executor = new models.Executor();
-        result   = executor.runProbes( probeIds, adapter, targetName );
+        result   = executor.runProbes( probeIds, adapter, targetName, "", secrets );
 
         bx:header statusCode=200;
         writeOutput( jsonSerialize( { "ok": true, "findings": result.findings, "report": result.report } ) );

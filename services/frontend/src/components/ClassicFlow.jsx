@@ -65,6 +65,7 @@ export default function ClassicFlow({ onReportCreated }) {
   const [adapterHeaders, setAdapterHeaders] = useState('{}');
   const [adapterBody, setAdapterBody] = useState(DEFAULT_BODY_TEMPLATE);
   const [adapterResponsePath, setAdapterResponsePath] = useState('0.output');
+  const [secretsText, setSecretsText] = useState('');
 
   const [execStatus, setExecStatus] = useState('idle');
   const [findings, setFindings] = useState([]);
@@ -142,6 +143,10 @@ export default function ClassicFlow({ onReportCreated }) {
       body: JSON.stringify({
         target: targetTypes.join(', '),
         probeIds: selectedProbeIds,
+        secrets: secretsText
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean),
         targetAdapter: {
           url: adapterUrl,
           method: adapterMethod,
@@ -299,6 +304,17 @@ export default function ClassicFlow({ onReportCreated }) {
                 response body as text.
               </>
             }
+          />
+
+          <TextAreaField
+            id="f-secrets"
+            label="Secrets the target must never reveal (optional)"
+            mono
+            value={secretsText}
+            onChange={(e) => setSecretsText(e.target.value)}
+            spellCheck={false}
+            placeholder={'One per line, e.g.\nA line of its system prompt\nsk-test-PLANTED-KEY-1234'}
+            hint="One string per line. If any appears verbatim in a reply it's scored as a definite leak — exact, zero false positives. Replies are also graded by an AI judge for prompt/secret/PII leakage, so you'll catch disclosures even without listing anything here."
           />
 
           <div className="row-end">

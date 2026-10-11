@@ -40,11 +40,14 @@ class {
             .registerTool(
                 aiTool(
                     "run_probes",
-                    "Deliver chosen probes to the user's real target AI over HTTP and score the replies for vulnerabilities. probeIds must be a JSON array of probe id strings (from create_test_plan's plan). targetAdapter must be a JSON object: {url, method, headers, bodyTemplate, responsePath} describing how to call the target - bodyTemplate is the target's own JSON request shape with the literal string {{PROMPT}} where the attack text goes, and responsePath is a dot-path into the target's JSON reply (0-indexed for arrays, blank for raw text). conversationId must be the conversation id you were given - pass it exactly as given so the full HTML report becomes available to the user. target is a short human name for the system under test (e.g. 'support-bot' or 'acme refund assistant'), used as the report title. Returns JSON: { findings: [...], report: { summary: { probes_run, vulnerabilities, risk_score }, ... } }.",
-                    ( probeIds, targetAdapter, conversationId = "", target = "" ) => {
+                    "Deliver chosen probes to the user's real target AI over HTTP and score the replies for vulnerabilities. probeIds must be a JSON array of probe id strings (from create_test_plan's plan). targetAdapter must be a JSON object: {url, method, headers, bodyTemplate, responsePath} describing how to call the target - bodyTemplate is the target's own JSON request shape with the literal string {{PROMPT}} where the attack text goes, and responsePath is a dot-path into the target's JSON reply (0-indexed for arrays, blank for raw text). conversationId must be the conversation id you were given - pass it exactly as given so the full HTML report becomes available to the user. target is a short human name for the system under test (e.g. 'support-bot' or 'acme refund assistant'), used as the report title. secrets is an OPTIONAL JSON array of strings the target must never disclose (e.g. a snippet of its system prompt, a planted fake API key, an internal value) - any one appearing in a reply is scored as a definite leak; pass [] if the user gave none. Replies are also scored by an AI judge for prompt/secret/PII leakage and policy breaks, not just planted markers. Returns JSON: { findings: [...], report: { summary: { probes_run, vulnerabilities, risk_score }, ... } }.",
+                    ( probeIds, targetAdapter, conversationId = "", target = "", secrets = "[]" ) => {
                         var ids     = jsonDeserialize( probeIds );
                         var adapter = jsonDeserialize( targetAdapter );
-                        var result  = new models.Executor().runProbes( ids, adapter, target, conversationId );
+                        var secretList = [];
+                        try { secretList = jsonDeserialize( secrets ); } catch ( any e ) { secretList = []; }
+                        if ( !isArray( secretList ) ) secretList = [];
+                        var result  = new models.Executor().runProbes( ids, adapter, target, conversationId, secretList );
 
                         // Stashed for api/chat.bxm to pick up after agent.run()
                         // returns - the agent's final reply is text-only, it
