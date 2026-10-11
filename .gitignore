@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+# Generated evaluation outputs
+reports/*.json
+reports/*.html
+!reports/.gitkeep
