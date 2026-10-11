@@ -212,12 +212,15 @@ export default function App() {
           />
         </div>
         <details className="advanced">
-          <summary>Core endpoint</summary>
+          <summary>Advanced: Rexor backend address</summary>
           <div className="field">
-            <label htmlFor="f-core-url">core service URL</label>
+            <label htmlFor="f-core-url">core service URL (not your target AI)</label>
             <input id="f-core-url" className="input" value={coreUrl} onChange={(e) => onCoreUrlChange(e.target.value)} />
             <div className="hint">
-              Rexor&rsquo;s core service, running locally via <code>scripts/compose.sh up --build core atlas-redteam</code>.
+              This is Rexor&rsquo;s own <code>core</code> service (running locally via{' '}
+              <code>scripts/compose.sh up --build core atlas-redteam</code>), not the AI you&rsquo;re testing. Leave
+              this as <code>http://localhost:8081</code> unless you moved <code>core</code> elsewhere &mdash; you&rsquo;ll
+              enter your target&rsquo;s URL in step 2, below.
             </div>
           </div>
         </details>
@@ -271,7 +274,7 @@ export default function App() {
 
           <div className="grid-2">
             <div className="field">
-              <label htmlFor="f-url">Target URL</label>
+              <label htmlFor="f-url">Target AI URL (the one being tested)</label>
               <input
                 id="f-url"
                 className="input"
