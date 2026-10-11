@@ -102,11 +102,32 @@ vale la pena leerlo antes de tocar este servicio, documenta varias cosas
 donde la documentación oficial de bx-ai está desactualizada o incompleta
 respecto a la versión instalada (3.5.0).
 
-**Pendiente en `core`**: solo produce la *estrategia* (qué probes aplican y
-por qué). Falta la ejecución real: entregar cada probe al agente del
-usuario final (vía HTTP a un endpoint que el usuario provea, o algún otro
-canal) y llamar `judge_response` del MCP pa anotar hallazgos. Esa es la
-siguiente pieza a construir en este servicio.
+**Ejecución real ya implementada** — `POST /api/execute.bxm` cierra el loop
+que faltaba: dado un array de `probeIds` + un `targetAdapter` (URL, method,
+headers, `bodyTemplate` JSON con `{{PROMPT}}`, `responsePath`), entrega cada
+probe al target real del usuario, extrae la respuesta y la puntúa con
+`judge_response` (MCP). El `targetAdapter` existe porque cada target tiene
+su propio contrato HTTP — ej. un webhook n8n de WhatsApp espera/devuelve su
+propio JSON, no un formato fijo. Sin LLM en este loop (determinístico, no
+alucina hallazgos). Verificado end-to-end contra un mock tipo n8n: probe
+real entregado, inyección real detectada (`vulnerable: true`), y manejo de
+error limpio si el target no responde. CORS (`Access-Control-Allow-Origin`
++ preflight OPTIONS) agregado a ambos endpoints pa que el frontend (corre
+en el navegador) pueda llamarlos directo. Detalle completo del contrato en
+[services/core/README.md](./services/core/README.md#2-execute--postapiexecutebxm).
+
+### `services/frontend` (Vite + React) — ya integrado, MVP funcional
+
+UI real en código (no artifact de Claude) usando el design system Rexor
+portado a CSS/componentes propios (`src/styles/tokens.css`,
+`src/styles/rexor.css`, logos en `public/`, ver
+[services/frontend/README.md](./services/frontend/README.md)). Flujo: form
+de target → `run.bxm` → muestra el plan (markdown) y auto-extrae los probe
+ids → form del `targetAdapter` (precargado con un ejemplo estilo n8n) →
+`execute.bxm` → tarjetas de hallazgos con severidad/vulnerable-defendido.
+Verificado end-to-end con Playwright real (headless Chromium) contra
+`core`+`atlas-redteam` corriendo: plan real de MiniMax, 5/6 hallazgos
+vulnerables renderizados correctamente, cero errores de consola.
 
 ### `services/_template-python` y `services/_template-boxlang`
 
@@ -114,12 +135,25 @@ Plantillas base pa nuevos servicios. Copiar, renombrar carpeta, reemplazar
 `change_me`, ajustar `.env`. (El servicio BoxLang real ya existe en
 `services/core`, estas plantillas son solo pa servicios adicionales.)
 
+### ⚠️ `boxlang-reports/` en la raíz del repo — no sigue la convención
+
+El compañero subió un servicio de reportes BoxLang directo en la raíz
+(`boxlang-reports/`), no en `services/<nombre>/` con su propio
+Dockerfile/docker-compose. Rompe la convención de "cada servicio
+autocontenido, nadie toca archivos compartidos". Pendiente: moverlo a
+`services/reports/` y empaquetarlo igual que los demás (preguntado al
+equipo, no reorganizado todavía sin confirmar).
+
 ## Decisiones pendientes / siguiente paso
 
 - ~~Conseguir una `MINIMAX_API_KEY` real~~ — ya la tenemos, demo funcionando.
-- En `core`: implementar la entrega real de probes al agente del usuario
-  final + scoring con `judge_response`, y devolver un reporte agregado
-  (puede delegar en `atlas_redteam.report` o en el servicio de reportes
-  Python del compañero).
-- Servicio de reportes (a cargo del compañero): copiar `_template-python`
-  (no reinventar estructura).
+- ~~Ejecución real de probes contra el target~~ — hecho (`execute.bxm`).
+- Reacomodar `boxlang-reports/` a `services/reports/` (ver arriba) —
+  confirmar con el equipo primero.
+- Conectar el reporte final: agregar los `findings` de `execute.bxm` en
+  algo presentable (puede ser el servicio de reportes del compañero, o
+  `atlas_redteam.report` que ya genera HTML/JSON).
+- El artifact de Claude (`https://claude.ai/artifact/FWW6DfgT3byLT4sE13XFtZ`)
+  que se hizo como primer borrador del frontend quedó obsoleto — el
+  frontend real vive en `services/frontend/`. Pendiente borrar el artifact
+  si nadie lo necesita.

@@ -1,0 +1,11 @@
+services:
+  frontend:
+    build: .
+    ports:
+      - "5173:80"
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    external: true
