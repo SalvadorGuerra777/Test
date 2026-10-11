@@ -1,0 +1,13 @@
+/**
+ * Application.bx — BoxLang application settings for the report microservice.
+ * Registers a /lib mapping so `new lib.ReportService()` resolves under the MiniServer.
+ */
+class {
+    this.name             = "atlas-redteam-reports"
+    this.sessionManagement = false
+    this.applicationTimeout = createTimeSpan( 1, 0, 0, 0 )
+
+    this.mappings = {
+        "/lib": getDirectoryFromPath( getCurrentTemplatePath() ) & "lib"
+    }
+}

@@ -1,0 +1,148 @@
+/**
+ * ReportService
+ * -------------------------------------------------------------------------
+ * BoxLang service that turns a red-team evaluation result (the JSON produced
+ * by the Python `atlas-redteam` harness) into a styled HTML security report,
+ * enriching each finding with MITRE ATLAS mitigations.
+ *
+ * Usage (web):   see report.bxm
+ * Usage (CLI):   boxlang lib/ReportService.bx <input.json> <output.html>
+ * Usage (code):  svc = new lib.ReportService( expandPath("data/atlas-mitigations.json") )
+ *                html = svc.render( jsonDeserialize( fileRead("samples/sample-report.json") ) )
+ */
+class {
+
+    property name="mitigations" type="struct";
+
+    /**
+     * @mitigationsPath Optional path to atlas-mitigations.json (technique id -> [ "AML.Mxxxx — name" ]).
+     */
+    function init( string mitigationsPath = "" ) {
+        variables.mitigations = loadMitigations( arguments.mitigationsPath )
+        return this
+    }
+
+    /** CLI entry point: boxlang lib/ReportService.bx <input.json> <output.html> */
+    function main( args = [] ) {
+        var inPath  = args.len() >= 1 ? args[ 1 ] : "samples/sample-report.json"
+        var outPath = args.len() >= 2 ? args[ 2 ] : "report.html"
+        variables.mitigations = loadMitigations( expandPath( "data/atlas-mitigations.json" ) )
+        renderToFile( jsonDeserialize( fileRead( inPath ) ), outPath )
+        println( "Wrote " & outPath & " from " & inPath )
+    }
+
+    // --------------------------------------------------------------------- //
+    // Public API
+    // --------------------------------------------------------------------- //
+
+    /** Render a report struct to an HTML string. */
+    string function render( required struct report ) {
+        variables.report = enrich( arguments.report )
+        var html = ""
+        bx:savecontent variable="html" {
+            include "report-view.bxm"
+        }
+        return html
+    }
+
+    /** Render a report struct straight to an HTML file. Returns the path. */
+    string function renderToFile( required struct report, required string path ) {
+        fileWrite( arguments.path, render( arguments.report ) )
+        return arguments.path
+    }
+
+    // --------------------------------------------------------------------- //
+    // Enrichment — precompute everything the view needs (view stays "dumb").
+    // --------------------------------------------------------------------- //
+
+    struct function enrich( required struct report ) {
+        var r = arguments.report
+        var s = r.summary
+
+        // Risk band + color
+        r[ "band" ] = riskBand( s.risk_score )
+
+        // Severity chips in fixed order (only those present)
+        var order = [ "critical", "high", "medium", "low", "info" ]
+        r[ "severityRows" ] = []
+        for ( var sev in order ) {
+            if ( structKeyExists( s.by_severity, sev ) ) {
+                r.severityRows.append( { "sev": sev, "count": s.by_severity[ sev ], "color": sevColor( sev ) } )
+            }
+        }
+
+        // Results by test area
+        r[ "categoryRows" ] = []
+        for ( var cat in s.by_category ) {
+            var c   = s.by_category[ cat ]
+            var pct = c.total > 0 ? round( c.vulnerable / c.total * 100 ) : 0
+            r.categoryRows.append( { "category": cat, "vulnerable": c.vulnerable, "total": c.total, "pct": pct } )
+        }
+        r.categoryRows.sort( ( a, b ) -> compareNoCase( a.category, b.category ) )
+
+        // ATLAS technique coverage
+        r[ "atlasRows" ] = []
+        for ( var tid in r.atlas_coverage ) {
+            var a = r.atlas_coverage[ tid ]
+            r.atlasRows.append( { "tid": tid, "name": a.name, "tested": a.tested, "vulnerable": a.vulnerable } )
+        }
+        r.atlasRows.sort( ( a, b ) -> compareNoCase( a.tid, b.tid ) )
+
+        // Vulnerable findings, enriched with ATLAS mitigations
+        r[ "vulnFindings" ] = []
+        for ( var f in r.findings ) {
+            if ( f.vulnerable ) {
+                var mits = variables.mitigations.keyExists( f.atlas_technique ) ? variables.mitigations[ f.atlas_technique ] : []
+                var tactics = ( f.keyExists( "atlas_tactics" ) && f.atlas_tactics.len() ) ? f.atlas_tactics.toList( ", " ) : "—"
+                r.vulnFindings.append( {
+                    "severity"            : f.severity,
+                    "sevColor"            : sevColor( f.severity ),
+                    "probe_name"          : f.probe_name,
+                    "probe_id"            : f.probe_id,
+                    "channel"             : f.channel,
+                    "atlas_technique"     : f.atlas_technique,
+                    "atlas_technique_name": f.atlas_technique_name,
+                    "tactics"             : tactics,
+                    "rationale"           : f.rationale,
+                    "evidence"            : left( f.keyExists( "evidence" ) ? f.evidence : "", 90 ),
+                    "mitigations"         : mits
+                } )
+            }
+        }
+        return r
+    }
+
+    // --------------------------------------------------------------------- //
+    // Presentation helpers. Note: "##xxxxxx" in a BoxLang string is the
+    // escaped form that yields the literal "#xxxxxx" hex color at runtime.
+    // --------------------------------------------------------------------- //
+
+    struct function riskBand( numeric score ) {
+        if ( arguments.score >= 80 ) return { "label": "Critical", "color": "##b4232c" }
+        if ( arguments.score >= 60 ) return { "label": "Severe",   "color": "##d9641e" }
+        if ( arguments.score >= 40 ) return { "label": "Elevated", "color": "##d9641e" }
+        if ( arguments.score >= 20 ) return { "label": "Moderate", "color": "##c99700" }
+        if ( arguments.score >   0 ) return { "label": "Low",      "color": "##2f7d4f" }
+        return { "label": "Minimal", "color": "##2f7d4f" }
+    }
+
+    string function sevColor( required string sev ) {
+        var m = {
+            "critical": "##b4232c", "high": "##d9641e", "medium": "##c99700",
+            "low": "##2f7d4f", "info": "##4a6a8a"
+        }
+        return m.keyExists( arguments.sev ) ? m[ arguments.sev ] : "##888888"
+    }
+
+    // --------------------------------------------------------------------- //
+    // Internals
+    // --------------------------------------------------------------------- //
+
+    private struct function loadMitigations( string path = "" ) {
+        if ( len( arguments.path ) && fileExists( arguments.path ) ) {
+            return jsonDeserialize( fileRead( arguments.path ) )
+        }
+        return {}
+    }
+
+}

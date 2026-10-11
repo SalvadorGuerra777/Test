@@ -1,0 +1,32 @@
+<bx:comment> index.bxm — landing page with usage + link to the sample report. </bx:comment><!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlas-redteam · Microservicio de reportes (BoxLang)</title>
+<style>
+  body { margin:0; font:15px/1.6 -apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:#0f1216; color:#e8ebef; padding:40px 20px; }
+  .wrap { max-width:720px; margin:0 auto; }
+  h1 { font-size:24px; } code { background:#1b2129; padding:2px 6px; border-radius:5px; }
+  pre { background:#171b21; border:1px solid #262c34; border-radius:10px; padding:14px; overflow:auto; }
+  a.btn { display:inline-block; margin-top:8px; background:#3355ff; color:#fff; text-decoration:none;
+    padding:10px 16px; border-radius:8px; font-weight:600; }
+  .mut { color:#9aa6b3; }
+</style></head>
+<body><div class="wrap">
+  <h1>Microservicio de reportes · atlas-redteam</h1>
+  <p class="mut">Convierte el JSON del red-team (Python) en un reporte HTML con mapeo MITRE ATLAS.</p>
+
+  <h3>Ver demo</h3>
+  <a class="btn" href="report.bxm?sample=1">Abrir reporte de ejemplo</a>
+
+  <h3>Generar desde tu propio JSON (POST)</h3>
+  <pre>curl -X POST http://localhost:8080/report.bxm \
+     -H "Content-Type: application/json" \
+     --data-binary @mi-resultado.json  &gt; reporte.html</pre>
+
+  <h3>CLI</h3>
+  <pre>boxlang render.bxs mi-resultado.json reporte.html</pre>
+
+  <p class="mut">El JSON esperado es el que produce el harness de Python
+     (<code>run_eval(...).to_dict()</code>).</p>
+</div></body></html>

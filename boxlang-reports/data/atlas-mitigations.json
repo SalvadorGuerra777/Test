@@ -1,0 +1,631 @@
+{
+ "AML.T0000": [
+  "AML.M0000 — Limit Public Release of Information",
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0000.003": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0001": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0002": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0002.000": [
+  "AML.M0001 — Limit Model Artifact Release"
+ ],
+ "AML.T0002.001": [
+  "AML.M0001 — Limit Model Artifact Release",
+  "AML.M0014 — Verify AI Artifacts"
+ ],
+ "AML.T0003": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0004": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0005": [
+  "AML.M0000 — Limit Public Release of Information",
+  "AML.M0001 — Limit Model Artifact Release",
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0005.000": [
+  "AML.M0000 — Limit Public Release of Information",
+  "AML.M0001 — Limit Model Artifact Release"
+ ],
+ "AML.T0005.001": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0024 — AI Telemetry Logging"
+ ],
+ "AML.T0005.002": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0006": [
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0032 — Segmentation of AI Agent Components",
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0006.000": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0006.001": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0006.002": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0006.003": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0007": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0012 — Encrypt Sensitive Information"
+ ],
+ "AML.T0010": [
+  "AML.M0014 — Verify AI Artifacts",
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0023 — AI Bill of Materials",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0010.001": [
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0013 — Code Signing",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0010.002": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0007 — Sanitize Training Data",
+  "AML.M0014 — Verify AI Artifacts",
+  "AML.M0025 — Maintain AI Dataset Provenance",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0010.003": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0013 — Code Signing",
+  "AML.M0017 — AI Model Distribution Methods",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0010.005": [
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0011": [
+  "AML.M0011 — Restrict Library Loading",
+  "AML.M0014 — Verify AI Artifacts",
+  "AML.M0016 — Vulnerability Scanning",
+  "AML.M0018 — User Training",
+  "AML.M0023 — AI Bill of Materials"
+ ],
+ "AML.T0011.000": [
+  "AML.M0011 — Restrict Library Loading",
+  "AML.M0013 — Code Signing",
+  "AML.M0014 — Verify AI Artifacts",
+  "AML.M0016 — Vulnerability Scanning",
+  "AML.M0018 — User Training",
+  "AML.M0023 — AI Bill of Materials"
+ ],
+ "AML.T0011.001": [
+  "AML.M0011 — Restrict Library Loading",
+  "AML.M0013 — Code Signing",
+  "AML.M0016 — Vulnerability Scanning",
+  "AML.M0018 — User Training",
+  "AML.M0023 — AI Bill of Materials"
+ ],
+ "AML.T0012": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0013": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate"
+ ],
+ "AML.T0014": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0006 — Predictive AI Ensembles"
+ ],
+ "AML.T0015": [
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0009 — Predictive AI Multi-Sensor Fusion",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection",
+  "AML.M0034 — Deepfake Detection",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0016": [
+  "AML.M0001 — Limit Model Artifact Release"
+ ],
+ "AML.T0016.002": [
+  "AML.M0001 — Limit Model Artifact Release",
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0022 — Generative AI Model Alignment"
+ ],
+ "AML.T0018": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0013 — Code Signing",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0018.000": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0007 — Sanitize Training Data",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0013 — Code Signing",
+  "AML.M0025 — Maintain AI Dataset Provenance",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0018.001": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0013 — Code Signing",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0018.002": [
+  "AML.M0013 — Code Signing"
+ ],
+ "AML.T0020": [
+  "AML.M0001 — Limit Model Artifact Release",
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0007 — Sanitize Training Data",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0023 — AI Bill of Materials",
+  "AML.M0025 — Maintain AI Dataset Provenance",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0021": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0024": [
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0024.000": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0024.001": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0024.002": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0025": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest"
+ ],
+ "AML.T0029": [
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0015 — Predictive AI Adversarial Input Detection",
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0035 — AI Red Team",
+  "AML.M0036 — Limit AI Workload Resource Consumption"
+ ],
+ "AML.T0031": [
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection"
+ ],
+ "AML.T0034": [
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0035 — AI Red Team",
+  "AML.M0036 — Limit AI Workload Resource Consumption"
+ ],
+ "AML.T0034.000": [
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0034.001": [
+  "AML.M0035 — AI Red Team",
+  "AML.M0036 — Limit AI Workload Resource Consumption"
+ ],
+ "AML.T0034.002": [
+  "AML.M0035 — AI Red Team",
+  "AML.M0036 — Limit AI Workload Resource Consumption"
+ ],
+ "AML.T0035": [
+  "AML.M0001 — Limit Model Artifact Release",
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0012 — Encrypt Sensitive Information",
+  "AML.M0017 — AI Model Distribution Methods"
+ ],
+ "AML.T0040": [
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0041": [
+  "AML.M0009 — Predictive AI Multi-Sensor Fusion"
+ ],
+ "AML.T0042": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0043": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0043.000": [
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection",
+  "AML.M0017 — AI Model Distribution Methods"
+ ],
+ "AML.T0043.001": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0043.002": [
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection"
+ ],
+ "AML.T0043.003": [
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection"
+ ],
+ "AML.T0043.004": [
+  "AML.M0003 — Predictive AI Model Hardening",
+  "AML.M0006 — Predictive AI Ensembles",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0010 — Predictive AI Input Restoration",
+  "AML.M0015 — Predictive AI Adversarial Input Detection"
+ ],
+ "AML.T0044": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0017 — AI Model Distribution Methods"
+ ],
+ "AML.T0046": [
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0047": [
+  "AML.M0024 — AI Telemetry Logging"
+ ],
+ "AML.T0048.004": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0012 — Encrypt Sensitive Information",
+  "AML.M0017 — AI Model Distribution Methods"
+ ],
+ "AML.T0049": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0050": [
+  "AML.M0011 — Restrict Library Loading"
+ ],
+ "AML.T0051": [
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines",
+  "AML.M0022 — Generative AI Model Alignment",
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0033 — Input and Output Validation for AI Agent Components",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0051.000": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0033 — Input and Output Validation for AI Agent Components",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0051.001": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0033 — Input and Output Validation for AI Agent Components",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0051.002": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0033 — Input and Output Validation for AI Agent Components",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0052": [
+  "AML.M0018 — User Training",
+  "AML.M0034 — Deepfake Detection"
+ ],
+ "AML.T0052.000": [
+  "AML.M0018 — User Training",
+  "AML.M0034 — Deepfake Detection"
+ ],
+ "AML.T0052.001": [
+  "AML.M0018 — User Training",
+  "AML.M0034 — Deepfake Detection"
+ ],
+ "AML.T0053": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines",
+  "AML.M0022 — Generative AI Model Alignment",
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0026 — Privileged AI Agent Permissions Configuration",
+  "AML.M0027 — Single-User AI Agent Permissions Configuration",
+  "AML.M0028 — AI Agent Tools Permissions Configuration",
+  "AML.M0029 — Human In-the-Loop for AI Agent Actions",
+  "AML.M0030 — Restrict AI Agent Tool Invocation on Untrusted Data",
+  "AML.M0032 — Segmentation of AI Agent Components",
+  "AML.M0033 — Input and Output Validation for AI Agent Components",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0054": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines",
+  "AML.M0022 — Generative AI Model Alignment",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0056": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines",
+  "AML.M0022 — Generative AI Model Alignment",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0057": [
+  "AML.M0008 — Validate AI Model",
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines",
+  "AML.M0022 — Generative AI Model Alignment",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0059": [
+  "AML.M0007 — Sanitize Training Data",
+  "AML.M0025 — Maintain AI Dataset Provenance"
+ ],
+ "AML.T0061": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines",
+  "AML.M0022 — Generative AI Model Alignment"
+ ],
+ "AML.T0062": [
+  "AML.M0004 — Limit AI Service Query Volume and Rate",
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines",
+  "AML.M0022 — Generative AI Model Alignment"
+ ],
+ "AML.T0063": [
+  "AML.M0002 — Predictive AI Output Obfuscation",
+  "AML.M0012 — Encrypt Sensitive Information",
+  "AML.M0017 — AI Model Distribution Methods",
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0064": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0066": [
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0068": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0069": [
+  "AML.M0000 — Limit Public Release of Information",
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0069.000": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0069.001": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0069.002": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest",
+  "AML.M0019 — Control Access to AI Models and Data in Production",
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0070": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0071": [
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0074": [
+  "AML.M0011 — Restrict Library Loading",
+  "AML.M0025 — Maintain AI Dataset Provenance"
+ ],
+ "AML.T0078": [
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0080": [
+  "AML.M0031 — Memory Hardening",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0080.000": [
+  "AML.M0031 — Memory Hardening",
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0080.001": [
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0081": [
+  "AML.M0035 — AI Red Team"
+ ],
+ "AML.T0082": [
+  "AML.M0026 — Privileged AI Agent Permissions Configuration",
+  "AML.M0027 — Single-User AI Agent Permissions Configuration"
+ ],
+ "AML.T0084": [
+  "AML.M0000 — Limit Public Release of Information",
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0084.001": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0084.002": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0084.003": [
+  "AML.M0000 — Limit Public Release of Information"
+ ],
+ "AML.T0085": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0026 — Privileged AI Agent Permissions Configuration",
+  "AML.M0027 — Single-User AI Agent Permissions Configuration",
+  "AML.M0028 — AI Agent Tools Permissions Configuration",
+  "AML.M0032 — Segmentation of AI Agent Components"
+ ],
+ "AML.T0085.000": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0026 — Privileged AI Agent Permissions Configuration",
+  "AML.M0027 — Single-User AI Agent Permissions Configuration",
+  "AML.M0032 — Segmentation of AI Agent Components"
+ ],
+ "AML.T0085.001": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0026 — Privileged AI Agent Permissions Configuration",
+  "AML.M0027 — Single-User AI Agent Permissions Configuration",
+  "AML.M0028 — AI Agent Tools Permissions Configuration",
+  "AML.M0032 — Segmentation of AI Agent Components"
+ ],
+ "AML.T0086": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0026 — Privileged AI Agent Permissions Configuration",
+  "AML.M0027 — Single-User AI Agent Permissions Configuration",
+  "AML.M0028 — AI Agent Tools Permissions Configuration",
+  "AML.M0029 — Human In-the-Loop for AI Agent Actions",
+  "AML.M0030 — Restrict AI Agent Tool Invocation on Untrusted Data",
+  "AML.M0032 — Segmentation of AI Agent Components",
+  "AML.M0033 — Input and Output Validation for AI Agent Components"
+ ],
+ "AML.T0088": [
+  "AML.M0009 — Predictive AI Multi-Sensor Fusion",
+  "AML.M0034 — Deepfake Detection"
+ ],
+ "AML.T0090": [
+  "AML.M0011 — Restrict Library Loading"
+ ],
+ "AML.T0091": [
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0091.000": [
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0093": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0095": [
+  "AML.M0000 — Limit Public Release of Information",
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0095.000": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0096": [
+  "AML.M0019 — Control Access to AI Models and Data in Production"
+ ],
+ "AML.T0098": [
+  "AML.M0032 — Segmentation of AI Agent Components"
+ ],
+ "AML.T0099": [
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0100": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0021 — Generative AI Guidelines"
+ ],
+ "AML.T0101": [
+  "AML.M0024 — AI Telemetry Logging",
+  "AML.M0026 — Privileged AI Agent Permissions Configuration",
+  "AML.M0027 — Single-User AI Agent Permissions Configuration",
+  "AML.M0028 — AI Agent Tools Permissions Configuration",
+  "AML.M0029 — Human In-the-Loop for AI Agent Actions",
+  "AML.M0030 — Restrict AI Agent Tool Invocation on Untrusted Data"
+ ],
+ "AML.T0102": [
+  "AML.M0020 — Generative AI Guardrails",
+  "AML.M0022 — Generative AI Model Alignment"
+ ],
+ "AML.T0106": [
+  "AML.M0016 — Vulnerability Scanning"
+ ],
+ "AML.T0107": [
+  "AML.M0016 — Vulnerability Scanning"
+ ],
+ "AML.T0108": [
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0112.000": [
+  "AML.M0020 — Generative AI Guardrails"
+ ],
+ "AML.T0112.001": [
+  "AML.M0005 — Control Access to AI Models and Data at Rest"
+ ],
+ "AML.T0114": [
+  "AML.M0024 — AI Telemetry Logging"
+ ],
+ "AML.T0115": [
+  "AML.M0007 — Sanitize Training Data",
+  "AML.M0008 — Validate AI Model",
+  "AML.M0016 — Vulnerability Scanning"
+ ],
+ "AML.T0115.000": [
+  "AML.M0007 — Sanitize Training Data"
+ ],
+ "AML.T0115.001": [
+  "AML.M0008 — Validate AI Model",
+  "AML.M0016 — Vulnerability Scanning"
+ ],
+ "AML.T0115.002": [
+  "AML.M0016 — Vulnerability Scanning"
+ ],
+ "AML.T0116": [
+  "AML.M0037 — AI Agent Authority Expansion Controls",
+  "AML.M0038 — AI Agent Scope Drift Detection"
+ ],
+ "AML.T0117": [
+  "AML.M0037 — AI Agent Authority Expansion Controls",
+  "AML.M0038 — AI Agent Scope Drift Detection"
+ ],
+ "AML.T0119": [
+  "AML.M0016 — Vulnerability Scanning"
+ ],
+ "AML.T0122": [
+  "AML.M0016 — Vulnerability Scanning"
+ ],
+ "AML.T0124": [
+  "AML.M0037 — AI Agent Authority Expansion Controls",
+  "AML.M0038 — AI Agent Scope Drift Detection"
+ ],
+ "AML.T0132": [
+  "AML.M0039 — AI Honeypots"
+ ],
+ "AML.T0133": [
+  "AML.M0039 — AI Honeypots"
+ ]
+}

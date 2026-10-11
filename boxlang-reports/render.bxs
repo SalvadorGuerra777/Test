@@ -1,0 +1,17 @@
+/**
+ * render.bxs - CLI report generator.
+ * Usage: boxlang render.bxs [input.json] [output.html]
+ * Defaults: samples/sample-report.json -> report.html
+ * Run from this folder so the lib/ and data/ paths resolve.
+ *
+ * Note: positionals are filtered to drop the script name itself (".bxs"),
+ * so this works whether or not the runtime includes it.
+ */
+args = CLIGetArgs().positionals.filter( ( a ) => len( a ) < 4 || lCase( right( a, 4 ) ) != ".bxs" )
+inPath  = args.len() >= 1 ? args[ 1 ] : "samples/sample-report.json"
+outPath = args.len() >= 2 ? args[ 2 ] : "report.html"
+
+svc = new lib.ReportService( expandPath( "data/atlas-mitigations.json" ) )
+svc.renderToFile( jsonDeserialize( fileRead( inPath ) ), outPath )
+
+println( "OK -> wrote " & outPath & " from " & inPath )
