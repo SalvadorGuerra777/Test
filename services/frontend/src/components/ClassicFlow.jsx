@@ -8,8 +8,9 @@ import TextAreaField from './TextAreaField.jsx';
 import SelectField from './SelectField.jsx';
 import CheckboxGroup from './CheckboxGroup.jsx';
 import { stripThinking } from '../lib/text.js';
-import { openReportInNewTab } from '../lib/report.js';
-import { CORE_URL, REPORTS_URL } from '../lib/config.js';
+import Icon from './Icon.jsx';
+import { reportUrl } from '../lib/report.js';
+import { CORE_URL } from '../lib/config.js';
 
 // High-level catalog, not an extensive one — a real target is often more
 // than one of these at once (an agent that's also RAG-backed and voice
@@ -48,7 +49,7 @@ function extractProbeOptions(text) {
 // The original form-based flow: pick a target type, get a plan, fill in the
 // target's HTTP contract, run it, read findings. Kept alongside the chat
 // view for whoever wants to drive each step by hand.
-export default function ClassicFlow() {
+export default function ClassicFlow({ onReportCreated }) {
   const [targetTypes, setTargetTypes] = useState(['Customer support chatbot']);
   const [targetDescription, setTargetDescription] = useState(
     'A support chatbot with order-lookup and refund-processing tools, backed by a RAG knowledge base of policy documents.'
@@ -69,8 +70,6 @@ export default function ClassicFlow() {
   const [findings, setFindings] = useState([]);
   const [execError, setExecError] = useState('');
   const [report, setReport] = useState(null);
-  const [reportStatus, setReportStatus] = useState('idle'); // idle | running | error
-  const [reportError, setReportError] = useState('');
 
   function runPlan(ev) {
     ev.preventDefault();
@@ -136,8 +135,6 @@ export default function ClassicFlow() {
     setExecError('');
     setFindings([]);
     setReport(null);
-    setReportStatus('idle');
-    setReportError('');
 
     fetch(`${CORE_URL}/api/execute.bxm`, {
       method: 'POST',
@@ -168,6 +165,7 @@ export default function ClassicFlow() {
       .then((data) => {
         setFindings(data.findings || []);
         setReport(data.report || null);
+        if (data.report?.report_id) onReportCreated?.();
         setExecStatus('done');
       })
       .catch((err) => {
@@ -176,18 +174,6 @@ export default function ClassicFlow() {
       });
   }
 
-  function openReport(ev) {
-    ev.preventDefault();
-    if (!report) return;
-    setReportStatus('running');
-    setReportError('');
-    openReportInNewTab(report, REPORTS_URL)
-      .then(() => setReportStatus('idle'))
-      .catch((err) => {
-        setReportError(err.message || String(err));
-        setReportStatus('error');
-      });
-  }
 
   const probeCheckOptions = probeOptions.map((o) => ({ value: o.id, label: o.id, description: o.name || undefined }));
 
@@ -340,18 +326,13 @@ export default function ClassicFlow() {
             </span>
           </div>
 
-          {report ? (
+          {report?.report_id ? (
             <div className="row-end">
               <span />
-              <Button variant="primary" onClick={openReport} disabled={reportStatus === 'running'}>
-                {reportStatus === 'running' ? 'Building report…' : 'Generate report'}
-              </Button>
-            </div>
-          ) : null}
-          {reportStatus === 'error' ? (
-            <div className="error">
-              <b>Could not build the report. </b>
-              {reportError}
+              <a className="rx-btn rx-btn-primary rx-btn-md" href={reportUrl(report.report_id)} target="_blank" rel="noopener">
+                <Icon name="file" size={16} />
+                View report
+              </a>
             </div>
           ) : null}
 

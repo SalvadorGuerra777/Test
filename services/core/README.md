@@ -165,6 +165,23 @@ container rebuild. A real deployment would put `/app/data` on a volume or
 swap the file I/O for a database — the read/write surface is small and
 already isolated to `Executor.bx` and the two history endpoints.
 
+### Report viewer — `GET /api/report-view.bxm?id=<report_id>`
+
+Returns the rendered HTML report for an archived report. core reads
+`/app/data/reports/<id>.json` and POSTs it to the reports service over the
+internal Docker network (`REPORTS_INTERNAL_URL`, default
+`http://reports:8080/report.bxm`), then streams the HTML back. The frontend
+just links to this URL (`<a target="_blank">`) — the browser never POSTs
+report JSON cross-origin anymore. That old path intermittently arrived with
+an empty body (400) in Brave on Windows and never reproduced anywhere else;
+a plain GET navigation has nothing left to break. Errors come back as a
+small branded HTML page (400 bad id, 404 unknown id, 502 reports service
+failed).
+
+All ids that end up in a file path (here, `chats.bxm`, `reports.bxm`,
+`chat.bxm`'s `conversationId`, the `run_probes` tool) are checked against
+`^[A-Za-z0-9-]{1,64}$` first, so `../` can't escape `/app/data`.
+
 ## Run
 
 ```bash

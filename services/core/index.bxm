@@ -9,7 +9,8 @@ writeOutput( jsonSerialize( {
         "POST /api/chat.bxm": "{ message, conversationId? } -> conversational agent that drives run/execute via Rexor's own MCP tools",
         "POST /api/mcp.bxm?server=rexor": "Rexor's own MCP server: list_target_types, create_test_plan, run_probes",
         "GET /api/chats.bxm": "list past chat conversations (or ?id=<conversationId> to resume one)",
-        "GET /api/reports.bxm": "list past reports (or ?id=<report_id> for the full envelope)"
+        "GET /api/reports.bxm": "list past reports (or ?id=<report_id> for the full envelope)",
+        "GET /api/report-view.bxm?id=<report_id>": "rendered HTML report (core asks the reports service server-side)"
     }
 } ) );
 </bx:script>

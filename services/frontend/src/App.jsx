@@ -3,6 +3,7 @@ import SegmentedControl from './components/SegmentedControl.jsx';
 import ChatView from './components/ChatView.jsx';
 import ClassicFlow from './components/ClassicFlow.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
+import ReportsRail from './components/ReportsRail.jsx';
 import Button from './components/Button.jsx';
 import Icon from './components/Icon.jsx';
 
@@ -39,6 +40,8 @@ export default function App() {
   const [view, setView] = useState(loadView);
   const [conversationId, setConversationId] = useState(loadConversationId);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [reportsVersion, setReportsVersion] = useState(0);
+  const bumpReports = () => setReportsVersion((v) => v + 1);
 
   function changeView(v) {
     setView(v);
@@ -79,15 +82,19 @@ export default function App() {
         </div>
       </div>
 
-      {view === 'chat' ? (
-        <ChatView conversationId={conversationId} onConversationIdChange={changeConversationId} />
-      ) : (
-        <ClassicFlow />
-      )}
+      <div className="rx-main">
+        {view === 'chat' ? (
+          <ChatView conversationId={conversationId} onConversationIdChange={changeConversationId} onReportCreated={bumpReports} />
+        ) : (
+          <ClassicFlow onReportCreated={bumpReports} />
+        )}
+        <ReportsRail refreshKey={reportsVersion} />
+      </div>
 
       <HistoryPanel
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
+        refreshKey={reportsVersion}
         onSelectChat={(id) => {
           changeConversationId(id);
           changeView('chat');

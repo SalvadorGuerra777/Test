@@ -21,8 +21,13 @@ if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
     if ( len( trim( id ) ) ) {
         // One full report envelope - the same shape execute.bxm returns,
         // so the frontend can POST it straight to the reports service.
+        // The id becomes part of a file path: allow only report_id
+        // characters, so "../" can't escape the reports directory.
         path = reportsDir & "/" & id & ".json";
-        if ( !fileExists( path ) ) {
+        if ( !reFind( "^[A-Za-z0-9-]{1,64}$", id ) ) {
+            bx:header statusCode=400;
+            writeOutput( jsonSerialize( { "ok": false, "error": "Invalid report id." } ) );
+        } else if ( !fileExists( path ) ) {
             bx:header statusCode=404;
             writeOutput( jsonSerialize( { "ok": false, "error": "No report with that id." } ) );
         } else {

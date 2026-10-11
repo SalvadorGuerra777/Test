@@ -3,13 +3,13 @@ import { marked } from 'marked';
 import Button from './Button.jsx';
 import Icon from './Icon.jsx';
 import { stripThinking } from '../lib/text.js';
-import { openReportInNewTab } from '../lib/report.js';
-import { CORE_URL, REPORTS_URL } from '../lib/config.js';
+import { reportUrl } from '../lib/report.js';
+import { CORE_URL } from '../lib/config.js';
 
 const SUGGESTIONS = [
-  'I want to test my support chatbot, it has a refund tool and a RAG knowledge base.',
-  'Red-team my coding agent — it can read/write repo files and run shell commands.',
-  'Check my RAG assistant for prompt injection via retrieved documents.'
+  { icon: 'bot', label: 'Support chatbot', text: 'I want to test my support chatbot, it has a refund tool and a RAG knowledge base.' },
+  { icon: 'target', label: 'Coding agent', text: 'Red-team my coding agent — it can read/write repo files and run shell commands.' },
+  { icon: 'shield', label: 'RAG assistant', text: 'Check my RAG assistant for prompt injection via retrieved documents.' }
 ];
 
 function BotAvatar() {
@@ -45,14 +45,12 @@ function TypingIndicator() {
 // this component just reacts to it: load that conversation's transcript
 // whenever the id changes from outside, and tell the parent when a new one
 // is created by sending the first message of a fresh chat.
-export default function ChatView({ conversationId, onConversationIdChange }) {
+export default function ChatView({ conversationId, onConversationIdChange, onReportCreated }) {
   const [messages, setMessages] = useState([]); // [{role, content, report?}]
   const [hydrateStatus, setHydrateStatus] = useState('idle'); // idle | loading
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle'); // idle | sending | error
   const [error, setError] = useState('');
-  const [reportStatus, setReportStatus] = useState('idle'); // idle | running | error
-  const [reportError, setReportError] = useState('');
   const scrollRef = useRef(null);
   const skipNextHydrate = useRef(false);
 
@@ -123,22 +121,12 @@ export default function ChatView({ conversationId, onConversationIdChange }) {
           onConversationIdChange(data.conversationId);
         }
         setMessages((prev) => [...prev, { role: 'assistant', content: stripThinking(data.reply), report: data.report || null }]);
+        if (data.report?.report_id) onReportCreated?.();
         setStatus('idle');
       })
       .catch((err) => {
         setError(err.message || String(err));
         setStatus('error');
-      });
-  }
-
-  function viewReport(report) {
-    setReportStatus('running');
-    setReportError('');
-    openReportInNewTab(report, REPORTS_URL)
-      .then(() => setReportStatus('idle'))
-      .catch((err) => {
-        setReportError(err.message || String(err));
-        setReportStatus('error');
       });
   }
 
@@ -208,8 +196,12 @@ export default function ChatView({ conversationId, onConversationIdChange }) {
           {composer}
           <div className="rx-chatv-suggestions">
             {SUGGESTIONS.map((s) => (
-              <button key={s} type="button" className="rx-chatv-chip" onClick={(ev) => send(ev, s)}>
-                {s}
+              <button key={s.label} type="button" className="rx-chatv-chip" onClick={(ev) => send(ev, s.text)}>
+                <span className="rx-chatv-chip-head">
+                  <Icon name={s.icon} size={16} />
+                  {s.label}
+                </span>
+                <span className="rx-chatv-chip-text">{s.text}</span>
               </button>
             ))}
           </div>
@@ -237,11 +229,12 @@ export default function ChatView({ conversationId, onConversationIdChange }) {
               {m.role === 'assistant' ? <BotAvatar /> : null}
               <div className={`rx-chatv-msg rx-chatv-msg-${m.role}`}>
                 {m.role === 'assistant' ? <div dangerouslySetInnerHTML={{ __html: marked.parse(m.content) }} /> : m.content}
-                {m.report ? (
+                {m.report?.report_id ? (
                   <div className="rx-chatv-report-action">
-                    <Button variant="primary" size="sm" onClick={() => viewReport(m.report)} disabled={reportStatus === 'running'}>
-                      {reportStatus === 'running' ? 'Building report…' : 'View full report'}
-                    </Button>
+                    <a className="rx-btn rx-btn-primary rx-btn-sm" href={reportUrl(m.report.report_id)} target="_blank" rel="noopener">
+                      <Icon name="file" size={16} />
+                      View full report
+                    </a>
                   </div>
                 ) : null}
               </div>
@@ -249,7 +242,6 @@ export default function ChatView({ conversationId, onConversationIdChange }) {
           ))}
           {status === 'sending' ? <TypingIndicator /> : null}
           {status === 'error' ? <div className="rx-chatv-msg rx-chatv-msg-error">Could not reach Rexor: {error}</div> : null}
-          {reportStatus === 'error' ? <div className="rx-chatv-msg rx-chatv-msg-error">Could not build the report: {reportError}</div> : null}
         </div>
       </div>
 

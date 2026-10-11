@@ -142,20 +142,18 @@ exportando las env vars antes de `compose.sh build frontend`). Verificado
 empíricamente que sí quedan inlineadas en el JS compilado (grep del bundle
 por un valor marcador pasado en build).
 
-**Bug abierto, no resuelto**: `POST /report.bxm` a veces da 400 ("Envie el
-JSON...") solo desde el navegador real del usuario (Brave, Windows) al
-darle "Generate report" — **nunca** se pudo reproducir: ni con curl directo
-(incluyendo el "Copy as cURL" exacto capturado de su devtools, mismo
-payload/headers → 200), ni con Playwright/Chromium real simulando el mismo
-fetch repetido 10x, ni variando tamaño/contenido del payload. El error 400
-viene de `report.bxm` mismo (`jsonText` len 0 → `getHTTPRequestData` no
-leyó body), no es el bug del popup-blocker (ya arreglado aparte). Se
-reinició el stack completo por sugerencia del usuario (pudo ser caché/estado
-viejo) — pendiente que el usuario reconfirme si persiste tras eso. Si
-persiste: pedir repro con DevTools "Disable cache" apagado (esa opción
-inyecta headers `Cache-Control`/`Pragma` que vimos en su request real y que
-no están en `Access-Control-Allow-Headers` del server — posible culprit de
-preflight no identificado a fondo).
+**Bug del 400 de `report.bxm` — resuelto por diseño (no por repro)**: el
+`POST /report.bxm` desde el navegador del usuario (Brave, Windows) a veces
+llegaba con body vacío (400 "Envie el JSON...") y **nunca** se reprodujo en
+curl ni Playwright/Chromium. En vez de seguir persiguiéndolo, se eliminó el
+mecanismo frágil: el navegador ya **no** hace POST cross-origin a `reports`.
+Ahora `core` renderiza server-side (`GET /api/report-view.bxm?id=<report_id>`:
+lee el reporte archivado y lo manda a `reports` por la red Docker interna,
+`REPORTS_INTERNAL_URL`), y el frontend solo abre esa URL en un `<a
+target=_blank>` — sin CORS, sin preflight, sin body, sin `document.write`,
+sin popup blocker. El frontend ya no conoce la URL de `reports`
+(`VITE_REPORTS_URL` quedó sin uso). Si alguien vuelve a ver un 400, ya no
+puede venir de este camino.
 
 ### `services/reports` (BoxLang, MiniServer) — ya integrado y conectado
 
@@ -264,6 +262,15 @@ funcione. Mencionarlo en la demo/README si alguien más conecta un n8n.
   el transcript del server), click en un reporte lo abre en el visor de
   `reports`. Mismo caveat de siempre: filesystem efímero del container, no
   sobrevive un rebuild — para producción real, volumen o base de datos.
-- Bug abierto sin reproducir: ver nota arriba en la sección de `frontend`
-  sobre el 400 intermitente de `report.bxm` en el navegador real del
-  usuario.
+- ~~Bug 400 intermitente de `report.bxm` en Brave/Windows~~ — resuelto por
+  diseño (render server-side en `core`, ver sección `frontend`).
+- ~~Historial de reportes siempre visible~~ — hecho: columna derecha fija
+  (`ReportsRail.jsx`, desde 1024px; abajo de eso queda en el drawer de
+  History) con medidor de riesgo por reporte, se refresca sola cuando el
+  chat o el form producen un reporte nuevo. Chips de sugerencia del chat
+  pasaron de píldoras a tarjetas (`radius-lg`). `run_probes` ahora recibe
+  un `target` (nombre corto) pa titular el reporte en vez de la URL cruda.
+- Hardening: todo `id`/`conversationId` que termina en una ruta de archivo
+  (`chat.bxm`, `chats.bxm`, `reports.bxm`, `report-view.bxm`, tool
+  `run_probes`) se valida contra `^[A-Za-z0-9-]{1,64}$` — antes `../` podía
+  leer/escribir `.json` fuera de `/app/data`.

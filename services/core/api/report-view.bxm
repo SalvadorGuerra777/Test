@@ -1,0 +1,42 @@
+<bx:script>
+// Renders an archived report as HTML by id - the browser just navigates a
+// new tab here (plain GET, same as opening a link). The JSON never leaves
+// the server: core reads the archive and POSTs it to the reports service
+// over the internal Docker network. This replaced the browser POSTing the
+// report JSON cross-origin to reports/report.bxm, which intermittently
+// arrived with an empty body (400) in some real browsers (Brave on Windows)
+// and never reproduced anywhere else - a GET navigation has no body, no
+// preflight and no popup-blocker interaction to go wrong.
+reportId = url.id ?: "";
+
+function errorPage( required numeric status, required string message ) {
+    bx:header statusCode=arguments.status;
+    bx:header name="Content-Type" value="text/html; charset=utf-8";
+    writeOutput( "<!doctype html><meta charset='utf-8'><title>Report unavailable</title>"
+        & "<body style='font:15px/24px Inter,system-ui,sans-serif;background:##fbfafa;color:##1b1417;padding:48px'>"
+        & "<p style='font-size:12px;font-weight:600;letter-spacing:.06em;color:##c8102e;margin:0'>REXOR</p>"
+        & "<h1 style='font:600 24px/32px ""Space Grotesk"",system-ui,sans-serif;margin:8px 0'>Report unavailable</h1>"
+        & "<p style='color:##5e5459'>" & encodeForHTML( arguments.message ) & "</p></body>" );
+}
+
+if ( !reFind( "^[A-Za-z0-9-]{1,64}$", reportId ) ) {
+    errorPage( 400, "Missing or invalid report id." );
+} else {
+    path = "/app/data/reports/" & reportId & ".json";
+    if ( !fileExists( path ) ) {
+        errorPage( 404, "No report with that id. Reports live on the core container's disk and don't survive a rebuild." );
+    } else {
+        reportsUrl = getSystemSetting( "REPORTS_INTERNAL_URL", "http://reports:8080/report.bxm" );
+        bx:http url="#reportsUrl#" method="POST" timeout="60" result="res" {
+            bx:httpparam type="header" name="Content-Type" value="application/json";
+            bx:httpparam type="body" value="#fileRead( path )#";
+        }
+        if ( val( res.statusCode ) != 200 || len( res.errorDetail ?: "" ) ) {
+            errorPage( 502, "The reports service could not render this report (" & ( len( res.errorDetail ?: "" ) ? res.errorDetail : "HTTP " & res.statusCode ) & ")." );
+        } else {
+            bx:header name="Content-Type" value="text/html; charset=utf-8";
+            writeOutput( res.fileContent );
+        }
+    }
+}
+</bx:script>

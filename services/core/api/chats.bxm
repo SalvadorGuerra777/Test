@@ -20,8 +20,13 @@ if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
 
     if ( len( trim( id ) ) ) {
         // One conversation, full transcript - to resume it client-side.
+        // The id becomes part of a file path: allow only the characters a
+        // real conversationId (a UUID) can contain, so "../" can't escape.
         path = convDir & "/" & id & ".json";
-        if ( !fileExists( path ) ) {
+        if ( !reFind( "^[A-Za-z0-9-]{1,64}$", id ) ) {
+            bx:header statusCode=400;
+            writeOutput( jsonSerialize( { "ok": false, "error": "Invalid conversation id." } ) );
+        } else if ( !fileExists( path ) ) {
             bx:header statusCode=404;
             writeOutput( jsonSerialize( { "ok": false, "error": "No conversation with that id." } ) );
         } else {
