@@ -84,11 +84,18 @@ una función real). Flujo implementado:
    un plan.
 4. Responde `{ ok, targetType, plan }`.
 
-Verificado end-to-end corriendo los contenedores reales (build + run, no
-solo lectura de docs): instalación del módulo `bx-ai`, carga de
-`boxlang.json`, conexión MCP real contra `atlas-redteam`, y la llamada
-real a la API de MiniMax (confirmada hasta el 401 de "fake key" — o sea
-todo el wiring funciona, solo falta una `MINIMAX_API_KEY` real).
+**Verificado end-to-end con key real de MiniMax** (ya tenemos la key, está
+en `services/core/.env`, gitignored — pedírsela a David si la necesitan
+local). Corrida real: `atlas-redteam` + `core` levantados juntos en la red
+Docker, `POST /api/run.bxm` con un target de ejemplo (chatbot de soporte
+con tools de refund/order-lookup + RAG) devolvió un plan completo y
+correcto: técnicas ATLAS reales (AML.T0051 prompt injection, T0053 tool
+invocation, T0054 jailbreak, T0056 system prompt extraction, T0057 data
+leakage, T0070 RAG poisoning, T0084 discover config), probes concretos del
+corpus (`ACT-001`, `PI-DOC-001`, `PI-DOC-002`, `PI-DIRECT-001`, `SCOPE-001`,
+`INFO-001`) con rationale, y orden de ejecución recomendado. El agente usó
+las tools MCP reales de `atlas-redteam` (no alucinó técnicas/ids). Esto ya
+es demo-able tal cual para el jurado.
 Detalle completo + gotchas de BoxLang/bx-ai encontrados (y cómo se
 resolvieron) en [services/core/README.md](./services/core/README.md) —
 vale la pena leerlo antes de tocar este servicio, documenta varias cosas
@@ -109,8 +116,7 @@ Plantillas base pa nuevos servicios. Copiar, renombrar carpeta, reemplazar
 
 ## Decisiones pendientes / siguiente paso
 
-- Conseguir una `MINIMAX_API_KEY` real pa probar `core` de punta a punta
-  (el wiring ya está 100% verificado, solo falta la key).
+- ~~Conseguir una `MINIMAX_API_KEY` real~~ — ya la tenemos, demo funcionando.
 - En `core`: implementar la entrega real de probes al agente del usuario
   final + scoring con `judge_response`, y devolver un reporte agregado
   (puede delegar en `atlas_redteam.report` o en el servicio de reportes

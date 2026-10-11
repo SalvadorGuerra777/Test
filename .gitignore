@@ -13,6 +13,8 @@ venv/
 
 # env files (cada quien tiene el suyo local)
 services/*/.env
+*.swp
+*.swo
 
 # os
 .DS_Store
