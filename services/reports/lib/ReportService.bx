@@ -160,7 +160,10 @@ class {
         for ( var f0 in r.findings ) {
             if ( f0.keyExists( "evidence" ) ) {
                 var ev0 = f0.evidence
-                if ( len( ev0 ) >= 6 && left( ev0, 1 ) != "[" && !reFindNoCase( "^response_len", ev0 ) ) secretSet[ ev0 ] = true
+                // A leaked secret is a single token (the canary, an API key) — never prose.
+                // Policy-break probes put the reply itself in `evidence`; masking that would
+                // black out the whole transcript instead of protecting anything.
+                if ( len( ev0 ) >= 6 && left( ev0, 1 ) != "[" && !reFindNoCase( "^response_len", ev0 ) && !reFind( "\s", ev0 ) ) secretSet[ ev0 ] = true
             }
         }
         var knownSecrets = secretSet.keyArray()
