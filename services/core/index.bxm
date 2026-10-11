@@ -3,6 +3,13 @@ bx:header name="Content-Type" value="application/json; charset=utf-8";
 writeOutput( jsonSerialize( {
     "service": "core",
     "description": "AI red-team orchestrator: picks ATLAS techniques/probes for a target AI and runs the analysis via BoxLang AI (bx-ai).",
-    "endpoints": { "POST /api/run.bxm": "{ targetType, targetDescription } -> test plan" }
+    "endpoints": {
+        "POST /api/run.bxm": "{ targetType, targetDescription } -> test plan",
+        "POST /api/execute.bxm": "{ probeIds, targetAdapter } -> findings + report",
+        "POST /api/chat.bxm": "{ message, conversationId? } -> conversational agent that drives run/execute via Rexor's own MCP tools",
+        "POST /api/mcp.bxm?server=rexor": "Rexor's own MCP server: list_target_types, create_test_plan, run_probes",
+        "GET /api/chats.bxm": "list past chat conversations (or ?id=<conversationId> to resume one)",
+        "GET /api/reports.bxm": "list past reports (or ?id=<report_id> for the full envelope)"
+    }
 } ) );
 </bx:script>

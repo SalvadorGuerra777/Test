@@ -67,8 +67,25 @@
 
   --control-height: 40px;
   --form-max: 640px;
+  --scrollbar-size: 10px;
+  --overlay: rgba(27, 20, 23, 0.48);
+
+  --z-sticky: 10;
+  --z-nav: 20;
+  --z-overlay: 40;
+  --z-modal: 50;
 
   --field-invalid: #9f1239;
+
+  --scrollbar-thumb: var(--line-strong);
+  --scrollbar-thumb-hover: var(--ink-muted);
+  --scrollbar-track: transparent;
+
+  /* DotBackground — the brand's hero texture: a dot grid with a crimson
+     core concentrated behind the assistant's composer. Values verbatim
+     from the Rexor design system's tokens.json. */
+  --bg-dot: #d2cacd;
+  --bg-dot-accent: rgba(200, 16, 46, 0.55);
 
   color-scheme: light;
 }
@@ -115,6 +132,10 @@
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
 
     --field-invalid: #ff7aa0;
+    --overlay: rgba(0, 0, 0, 0.64);
+
+    --bg-dot: #342f37;
+    --bg-dot-accent: rgba(255, 92, 114, 0.6);
 
     color-scheme: dark;
   }
@@ -161,6 +182,10 @@
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
 
   --field-invalid: #ff7aa0;
+  --overlay: rgba(0, 0, 0, 0.64);
+
+  --bg-dot: #342f37;
+  --bg-dot-accent: rgba(255, 92, 114, 0.6);
 
   color-scheme: dark;
 }

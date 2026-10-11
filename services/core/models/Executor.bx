@@ -1,0 +1,205 @@
+/**
+ * Delivers probes to a real target AI (via a user-described targetAdapter)
+ * and scores the replies. Deterministic, no LLM in this loop. Shared by
+ * api/execute.bxm (direct HTTP call) and the platform's own MCP tool
+ * `run_probes` (chat agent call).
+ */
+class {
+
+    // Recursively replaces every string value equal to `placeholder` inside a
+    // JSON-shaped struct/array with `value` — this is how a user-defined
+    // bodyTemplate (e.g. an n8n webhook's own JSON shape) gets the real probe
+    // payload injected, with quotes/newlines escaped correctly.
+    private function substitutePlaceholder( required any node, required string placeholder, required string value ) {
+        if ( isStruct( arguments.node ) ) {
+            var result = {};
+            for ( var key in arguments.node ) {
+                result[ key ] = substitutePlaceholder( arguments.node[ key ], arguments.placeholder, arguments.value );
+            }
+            return result;
+        } else if ( isArray( arguments.node ) ) {
+            return arguments.node.map( ( item ) => substitutePlaceholder( item, arguments.placeholder, arguments.value ) );
+        } else if ( isSimpleValue( arguments.node ) && arguments.node == arguments.placeholder ) {
+            return arguments.value;
+        }
+        return arguments.node;
+    }
+
+    // Dot-path walker into a parsed JSON response, e.g. "0.output" for an n8n
+    // webhook that replies with [{"output": "..."}]. Array indices are
+    // 0-based (JS/JSON convention) even though BoxLang arrays are 1-based.
+    private function resolvePath( required any data, required string path ) {
+        if ( !len( trim( arguments.path ) ) ) return arguments.data;
+        var current = arguments.data;
+        for ( var seg in listToArray( arguments.path, "." ) ) {
+            if ( isArray( current ) ) {
+                current = current[ val( seg ) + 1 ];
+            } else if ( isStruct( current ) ) {
+                current = current[ seg ];
+            } else {
+                return "";
+            }
+        }
+        return current;
+    }
+
+    function runProbes( required array probeIds, required struct targetAdapter, string target = "", string conversationId = "" ) {
+        var atlasMcpUrl = getSystemSetting( "ATLAS_MCP_URL", "http://atlas-redteam:8765/mcp" );
+        var mcp = MCP( atlasMcpUrl );
+
+        var adapter      = arguments.targetAdapter;
+        var method       = adapter.method ?: "POST";
+        var headers      = adapter.headers ?: {};
+        var responsePath = adapter.responsePath ?: "";
+        var targetName   = len( trim( arguments.target ) ) ? arguments.target : ( adapter.url ?: "target" );
+
+        var findings = [];
+
+        for ( var probeId in arguments.probeIds ) {
+
+            var probeResp = mcp.send( "get_probe", { "probe_id": probeId } );
+            if ( !probeResp.isSuccess() ) {
+                findings.append( { "probeId": probeId, "error": "get_probe failed: " & probeResp.getError() } );
+                continue;
+            }
+            var probeData  = probeResp.getData().structuredContent;
+            var attackText = probeData.payload ?: "";
+
+            var requestBody = substitutePlaceholder( adapter.bodyTemplate, "{{PROMPT}}", attackText );
+
+            var targetRes = {};
+            bx:http url="#adapter.url#" method="#method#" timeout="30" result="targetRes" {
+                for ( var headerName in headers ) {
+                    bx:httpparam type="header" name="#headerName#" value="#headers[ headerName ]#";
+                }
+                bx:httpparam type="header" name="Content-Type" value="application/json";
+                bx:httpparam type="body" value="#jsonSerialize( requestBody )#";
+            }
+
+            if ( val( targetRes.statusCode ) >= 400 || len( targetRes.errorDetail ?: "" ) ) {
+                findings.append( {
+                    "probeId": probeId,
+                    "atlasTechnique": probeData.atlas_technique ?: "",
+                    "error": "target request failed: " & ( len( targetRes.errorDetail ?: "" ) ? targetRes.errorDetail : "HTTP " & targetRes.statusCode )
+                } );
+                continue;
+            }
+
+            var targetText = "";
+            if ( len( trim( responsePath ) ) ) {
+                try {
+                    targetText = toString( resolvePath( jsonDeserialize( targetRes.fileContent ), responsePath ) );
+                } catch ( any e ) {
+                    targetText = targetRes.fileContent;
+                }
+            } else {
+                targetText = targetRes.fileContent;
+            }
+
+            var judgeResp = mcp.send( "judge_response", { "probe_id": probeId, "response": targetText } );
+            if ( judgeResp.isSuccess() ) {
+                var finding = judgeResp.getData().structuredContent;
+                finding[ "targetResponse" ] = targetText;
+                finding[ "probe_name" ]     = probeData.name ?: "";
+                finding[ "category" ]       = probeData.category ?: "";
+                finding[ "channel" ]        = probeData.channel ?: "";
+                findings.append( finding );
+            } else {
+                findings.append( { "probeId": probeId, "error": "judge_response failed: " & judgeResp.getError(), "targetResponse": targetText } );
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Build the report envelope the `reports` microservice expects
+        // (same shape/formula as atlas_redteam.harness.EvalReport.to_dict()).
+        // Only successful findings go in - a {probeId, error} entry isn't a
+        // scored finding.
+        // ------------------------------------------------------------------
+        var SEV_WEIGHT = { "info": 0, "low": 1, "medium": 3, "high": 7, "critical": 12 };
+
+        var reportFindings = findings.filter( ( f ) => !structKeyExists( f, "error" ) );
+
+        var bySeverity = {};
+        var byCategory = {};
+        var atlasCoverage = {};
+        var maxWeight = 0;
+        var gotWeight = 0;
+
+        for ( var f in reportFindings ) {
+            var sevKey = f.severity ?: "info";
+            var w = SEV_WEIGHT[ sevKey ] ?: 0;
+            maxWeight += w;
+            if ( f.vulnerable ) {
+                gotWeight += w;
+                bySeverity[ sevKey ] = ( bySeverity[ sevKey ] ?: 0 ) + 1;
+            }
+
+            var cat = len( f.category ?: "" ) ? f.category : "uncategorized";
+            if ( !structKeyExists( byCategory, cat ) ) byCategory[ cat ] = { "total": 0, "vulnerable": 0 };
+            byCategory[ cat ].total++;
+            if ( f.vulnerable ) byCategory[ cat ].vulnerable++;
+
+            var tech = f.atlas_technique ?: "";
+            if ( len( tech ) ) {
+                if ( !structKeyExists( atlasCoverage, tech ) ) {
+                    atlasCoverage[ tech ] = { "name": f.atlas_technique_name ?: tech, "tested": 0, "vulnerable": 0 };
+                }
+                atlasCoverage[ tech ].tested++;
+                if ( f.vulnerable ) atlasCoverage[ tech ].vulnerable++;
+            }
+        }
+
+        var riskScore = maxWeight > 0 ? round( 100 * gotWeight / maxWeight ) : 0;
+
+        var catalogVersion = "";
+        var statsResp = mcp.send( "atlas_stats", {} );
+        if ( statsResp.isSuccess() ) {
+            catalogVersion = statsResp.getData().structuredContent.version ?: "";
+        }
+
+        // Sortable id: a timestamp prefix means a plain filename sort is a
+        // recency sort too, no need to stat() every file to list history.
+        var reportId = dateTimeFormat( now(), "yyyyMMddHHmmss" ) & "-" & left( lCase( createUUID() ), 8 );
+
+        var reportEnvelope = {
+            "report_id"      : reportId,
+            "conversation_id": arguments.conversationId,
+            "target"         : targetName,
+            "catalog_version": catalogVersion,
+            "started_at"     : dateTimeFormat( now(), "yyyy-MM-dd HH:mm:ss" ),
+            "rounds"         : 1,
+            "summary": {
+                "probes_run"     : reportFindings.len(),
+                "vulnerabilities": reportFindings.filter( ( f ) => f.vulnerable ).len(),
+                "risk_score"     : riskScore,
+                "by_severity"    : bySeverity,
+                "by_category"    : byCategory
+            },
+            "atlas_coverage": atlasCoverage,
+            "findings": reportFindings.map( ( f ) => ( {
+                "probe_id"            : f.probe_id,
+                "probe_name"          : f.probe_name,
+                "category"            : f.category,
+                "channel"             : f.channel,
+                "severity"            : f.severity,
+                "atlas_technique"     : f.atlas_technique,
+                "atlas_technique_name": f.atlas_technique_name,
+                "vulnerable"          : f.vulnerable,
+                "rationale"           : f.rationale,
+                "evidence"            : f.evidence ?: ""
+            } ) )
+        };
+
+        // Archive every report permanently (classic flow and chat flow both
+        // go through here) so it can be listed/reopened later from
+        // api/reports.bxm - independent of the chat's one-shot stash in
+        // api/chat.bxm, which is only for the inline "view report" button
+        // on the turn that produced it.
+        var reportsDir = "/app/data/reports";
+        if ( !directoryExists( reportsDir ) ) directoryCreate( reportsDir, true, true );
+        fileWrite( reportsDir & "/" & reportId & ".json", jsonSerialize( reportEnvelope ) );
+
+        return { "findings": findings, "report": reportEnvelope };
+    }
+
+}

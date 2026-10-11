@@ -1,0 +1,15 @@
+<bx:script>
+import bxModules.bxai.models.mcp.MCPRequestProcessor;
+
+// Rexor's own MCP server (registered in Application.bx) - exposes the
+// platform's actions (list_target_types, create_test_plan, run_probes) as
+// MCP tools, same transport bx-ai's own client expects. Reached here as
+// /api/mcp.bxm?server=rexor, both by the chat agent (loopback, server-side)
+// and by any external MCP client that wants to drive Rexor directly.
+//
+// NOTE: the hosted bx-ai docs show `MCPRequestProcessor::startHttp()`, but
+// that method doesn't exist on the real 3.5.0 class (verified against the
+// real error: "The key [startHttp] was not found... Valid keys are
+// [..., processHttp, ...]") - `processHttp()` is the real one.
+MCPRequestProcessor::processHttp();
+</bx:script>

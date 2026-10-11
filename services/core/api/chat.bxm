@@ -1,0 +1,133 @@
+<bx:script>
+bx:header name="Content-Type" value="application/json; charset=utf-8";
+bx:header name="Access-Control-Allow-Origin" value="*";
+bx:header name="Access-Control-Allow-Methods" value="POST, OPTIONS";
+bx:header name="Access-Control-Allow-Headers" value="Content-Type";
+
+requestData = getHTTPRequestData();
+
+if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
+    bx:header statusCode=204;
+
+} else if ( compareNoCase( requestData.method, "POST" ) != 0 ) {
+    bx:header statusCode=405;
+    writeOutput( jsonSerialize( { "ok": false, "error": "Use POST with a JSON body: { message, conversationId? }" } ) );
+
+} else {
+
+    payload = {};
+    parseFailed = false;
+    try {
+        payload = jsonDeserialize( requestData.content );
+    } catch ( any e ) {
+        parseFailed = true;
+    }
+
+    message        = payload.message ?: "";
+    conversationId = len( trim( payload.conversationId ?: "" ) ) ? payload.conversationId : createUUID();
+
+    if ( parseFailed || !len( trim( message ) ) ) {
+        bx:header statusCode=400;
+        writeOutput( jsonSerialize( { "ok": false, "error": "Invalid or missing body. Required: { message: string, conversationId?: string }" } ) );
+
+    } else {
+
+        // We keep the transcript ourselves as plain JSON, one file per
+        // conversationId, and replay it into the prompt on every turn.
+        // bx-ai's own aiMemory("file", ...) turned out to write one file
+        // PER MESSAGE (keyed by a slug of the message text, not the
+        // conversation) and didn't reload on a fresh instance in the same
+        // request - undocumented/unreliable behavior, verified by hand
+        // against the real module (see services/core/README.md). This is
+        // simpler and we can see exactly what it does.
+        convDir  = "/app/data/conversations";
+        histPath = convDir & "/" & conversationId & ".json";
+        if ( !directoryExists( convDir ) ) directoryCreate( convDir, true, true );
+
+        // The file wraps the message array with a title/updatedAt so
+        // api/chats.bxm can list past conversations without parsing every
+        // transcript's first message on every request.
+        history = [];
+        title   = "";
+        if ( fileExists( histPath ) ) {
+            try {
+                existing = jsonDeserialize( fileRead( histPath ) );
+                history  = existing.messages ?: [];
+                title    = existing.title ?: "";
+            } catch ( any e ) {
+                history = [];
+            }
+        }
+
+        transcript = "";
+        for ( turn in history ) {
+            transcript &= ( turn.role == "user" ? "User" : "Assistant" ) & ": " & turn.content & char(10);
+        }
+
+        atlasMcpUrl = getSystemSetting( "ATLAS_MCP_URL", "http://atlas-redteam:8765/mcp" );
+        selfMcpUrl  = getSystemSetting( "SELF_MCP_URL", "http://localhost:8080/api/mcp.bxm?server=rexor" );
+
+        model = aiModel( provider: "minimax" );
+
+        agent = aiAgent(
+            name        : "RexorAssistant",
+            description : "Conversational assistant for the Rexor AI red-team platform.",
+            instructions: "You are Rexor's assistant, a platform that red-teams other AIs against the MITRE ATLAS catalog. "
+                        & "The conversation so far (if any) is given to you as a transcript below the current message - use it for context, don't ask the user to repeat themselves. "
+                        & "Your conversation id is: " & conversationId & " - always pass this exact value as the conversationId argument when you call run_probes, so the full report becomes available to the user afterwards. "
+                        & "You act through your tools, you don't just describe them: list_target_types, create_test_plan, run_probes (yours), plus ATLAS reference/probe tools from the connected atlas-redteam server. "
+                        & "Goal: help the user go from 'I want to test my bot' to real findings. "
+                        & "Step 1 - figure out the target's type (use list_target_types if unsure what's supported) and a description: what it does, what tools/data it can access, how users talk to it. Ask a short question for whatever is missing instead of guessing. "
+                        & "Step 2 - once you have that, call create_test_plan and tell the user the plan and which probe ids you picked, in plain language. "
+                        & "Step 3 - to run it for real you need a targetAdapter: the target's real URL, HTTP method, headers, a JSON bodyTemplate matching the target's own request shape (must contain the literal string {{PROMPT}}), and a responsePath (dot-path into the JSON reply, 0-indexed for arrays, blank for raw text). Ask for whatever of that is missing. "
+                        & "Step 4 - call run_probes with the probe ids, targetAdapter, and your conversationId once you have them, then summarize the findings conversationally: how many probes ran, how many were vulnerable, and call out the worst ones with their severity and a one-line reason. Mention that a full report is ready to view. "
+                        & "Keep replies short and conversational, not a markdown dump, unless the user asks for detail. Never invent probe ids, ATLAS technique ids, or findings - only report what the tools actually returned.",
+            model       : model,
+            mcpServers  : [ atlasMcpUrl, selfMcpUrl ]
+        );
+
+        prompt = len( transcript ) ? ( "Conversation so far:" & char(10) & transcript & char(10) & "User: " & message ) : message;
+
+        reply = agent.run( prompt );
+
+        history.append( { "role": "user", "content": message } );
+        history.append( { "role": "assistant", "content": reply } );
+
+        // Title is set once, from the first message, so it doesn't drift as
+        // the conversation moves on to other topics.
+        if ( !len( trim( title ) ) ) {
+            title = len( message ) > 60 ? left( message, 57 ) & "..." : message;
+        }
+
+        fileWrite( histPath, jsonSerialize( {
+            "conversationId": conversationId,
+            "title"         : title,
+            "updatedAt"     : dateTimeFormat( now(), "yyyy-MM-dd HH:mm:ss" ),
+            "messages"      : history
+        } ) );
+
+        // run_probes (called by the agent above, if it got that far) stashes
+        // the report envelope here under our conversationId - agent.run()
+        // only hands back the final text reply, not intermediate tool
+        // results, so this is how the frontend gets the full report to open
+        // without us re-running anything.
+        responseBody = { "ok": true, "conversationId": conversationId, "reply": reply };
+        reportPath = convDir & "/" & conversationId & ".report.json";
+        if ( fileExists( reportPath ) ) {
+            try {
+                responseBody[ "report" ] = jsonDeserialize( fileRead( reportPath ) );
+            } catch ( any e ) {
+                // leave report out if the stash is somehow corrupt
+            }
+            // One-shot: only the turn where run_probes actually ran should
+            // surface a "view report" action - without this, every later
+            // turn in the same conversation would keep re-attaching the
+            // same stale report.
+            fileDelete( reportPath );
+        }
+
+        bx:header statusCode=200;
+        writeOutput( jsonSerialize( responseBody ) );
+    }
+}
+</bx:script>

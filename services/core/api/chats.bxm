@@ -1,0 +1,71 @@
+<bx:script>
+bx:header name="Content-Type" value="application/json; charset=utf-8";
+bx:header name="Access-Control-Allow-Origin" value="*";
+bx:header name="Access-Control-Allow-Methods" value="GET, OPTIONS";
+bx:header name="Access-Control-Allow-Headers" value="Content-Type";
+
+requestData = getHTTPRequestData();
+
+if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
+    bx:header statusCode=204;
+
+} else if ( compareNoCase( requestData.method, "GET" ) != 0 ) {
+    bx:header statusCode=405;
+    writeOutput( jsonSerialize( { "ok": false, "error": "Use GET. ?id=<conversationId> for one conversation, no params to list all." } ) );
+
+} else {
+
+    convDir = "/app/data/conversations";
+    id      = url.id ?: "";
+
+    if ( len( trim( id ) ) ) {
+        // One conversation, full transcript - to resume it client-side.
+        path = convDir & "/" & id & ".json";
+        if ( !fileExists( path ) ) {
+            bx:header statusCode=404;
+            writeOutput( jsonSerialize( { "ok": false, "error": "No conversation with that id." } ) );
+        } else {
+            try {
+                data = jsonDeserialize( fileRead( path ) );
+                bx:header statusCode=200;
+                writeOutput( jsonSerialize( {
+                    "ok"            : true,
+                    "conversationId": data.conversationId ?: id,
+                    "title"         : data.title ?: "",
+                    "updatedAt"     : data.updatedAt ?: "",
+                    "messages"      : data.messages ?: []
+                } ) );
+            } catch ( any e ) {
+                bx:header statusCode=500;
+                writeOutput( jsonSerialize( { "ok": false, "error": "Could not read that conversation." } ) );
+            }
+        }
+
+    } else {
+        // All conversations, summary only - for the history list.
+        chats = [];
+        if ( directoryExists( convDir ) ) {
+            for ( fileName in directoryList( convDir, false, "name", "*.json" ) ) {
+                if ( right( fileName, 12 ) == ".report.json" ) continue;
+                try {
+                    data = jsonDeserialize( fileRead( convDir & "/" & fileName ) );
+                    if ( !structKeyExists( data, "messages" ) ) continue;
+                    chats.append( {
+                        "conversationId": data.conversationId ?: listFirst( fileName, "." ),
+                        "title"         : len( trim( data.title ?: "" ) ) ? data.title : "Untitled chat",
+                        "updatedAt"     : data.updatedAt ?: "",
+                        "messageCount"  : arrayLen( data.messages ?: [] )
+                    } );
+                } catch ( any e ) {
+                    continue;
+                }
+            }
+        }
+
+        chats.sort( ( a, b ) => compare( b.updatedAt, a.updatedAt ) );
+
+        bx:header statusCode=200;
+        writeOutput( jsonSerialize( { "ok": true, "chats": chats } ) );
+    }
+}
+</bx:script>

@@ -1,0 +1,66 @@
+<bx:script>
+bx:header name="Content-Type" value="application/json; charset=utf-8";
+bx:header name="Access-Control-Allow-Origin" value="*";
+bx:header name="Access-Control-Allow-Methods" value="GET, OPTIONS";
+bx:header name="Access-Control-Allow-Headers" value="Content-Type";
+
+requestData = getHTTPRequestData();
+
+if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
+    bx:header statusCode=204;
+
+} else if ( compareNoCase( requestData.method, "GET" ) != 0 ) {
+    bx:header statusCode=405;
+    writeOutput( jsonSerialize( { "ok": false, "error": "Use GET. ?id=<report_id> for one report, no params to list all." } ) );
+
+} else {
+
+    reportsDir = "/app/data/reports";
+    id         = url.id ?: "";
+
+    if ( len( trim( id ) ) ) {
+        // One full report envelope - the same shape execute.bxm returns,
+        // so the frontend can POST it straight to the reports service.
+        path = reportsDir & "/" & id & ".json";
+        if ( !fileExists( path ) ) {
+            bx:header statusCode=404;
+            writeOutput( jsonSerialize( { "ok": false, "error": "No report with that id." } ) );
+        } else {
+            try {
+                bx:header statusCode=200;
+                writeOutput( jsonSerialize( { "ok": true, "report": jsonDeserialize( fileRead( path ) ) } ) );
+            } catch ( any e ) {
+                bx:header statusCode=500;
+                writeOutput( jsonSerialize( { "ok": false, "error": "Could not read that report." } ) );
+            }
+        }
+
+    } else {
+        // All reports, summary only - for the history list.
+        reports = [];
+        if ( directoryExists( reportsDir ) ) {
+            for ( fileName in directoryList( reportsDir, false, "name", "*.json" ) ) {
+                try {
+                    data = jsonDeserialize( fileRead( reportsDir & "/" & fileName ) );
+                    reports.append( {
+                        "report_id"      : data.report_id ?: listFirst( fileName, "." ),
+                        "target"         : data.target ?: "",
+                        "started_at"     : data.started_at ?: "",
+                        "conversation_id": data.conversation_id ?: "",
+                        "risk_score"     : data.summary.risk_score ?: 0,
+                        "probes_run"     : data.summary.probes_run ?: 0,
+                        "vulnerabilities": data.summary.vulnerabilities ?: 0
+                    } );
+                } catch ( any e ) {
+                    continue;
+                }
+            }
+        }
+
+        reports.sort( ( a, b ) => compare( b.report_id, a.report_id ) );
+
+        bx:header statusCode=200;
+        writeOutput( jsonSerialize( { "ok": true, "reports": reports } ) );
+    }
+}
+</bx:script>

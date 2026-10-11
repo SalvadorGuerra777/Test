@@ -81,6 +81,90 @@ prose inside markdown; execute wants an explicit array) — the frontend is
 the place gluing them, by parsing the picked ids out of the plan or just
 letting the user pick which ones to run.
 
+### 3. Chat — `POST /api/chat.bxm` (AI-driven front door)
+
+`{ message, conversationId? }` → a conversational agent that drives the
+platform itself, not just ATLAS reference lookups. You say "I want to test
+my bot, it has X and Y" in plain language; if something's missing (target
+type, description, or — once it's time to actually run — the target's HTTP
+contract) it asks a short clarifying question instead of guessing.
+
+This works because `core` exposes **its own MCP server** (see below) with
+the platform's actions as tools — `list_target_types`, `create_test_plan`,
+`run_probes` — and the chat agent is wired to it exactly like the planning
+agent is wired to `atlas-redteam`'s. The agent calls these tools itself;
+nothing here special-cases "chat mode" vs. "form mode", it's the same
+`Planner`/`Executor` logic either way.
+
+Conversation history: kept ourselves as a plain JSON file per
+`conversationId` under `/app/data/conversations/` (ephemeral container
+filesystem — fine for a demo, not meant to survive a restart), replayed
+into the prompt each turn. **Not** bx-ai's `aiMemory("file", ...)` — tried
+that first and it turned out to write one file *per message* (keyed by a
+random instance id plus a slug of the message text, not the conversation),
+and a fresh instance didn't reload prior messages by key within the same
+request either. Unreliable/undocumented enough in 3.5.0 that rolling our
+own was faster and verifiable.
+
+Verified end-to-end for real (not just unit-level): a single chat message
+with the bot's type + description + full HTTP contract in one go correctly
+drove `create_test_plan` then `run_probes` in the same turn and came back
+with a plain-language findings summary — no hallucinated probe ids or
+techniques, same `Planner`/`Executor` output as the form-based flow. Also
+verified in a real browser (Playwright, headless Chromium) against the
+`ChatSidebar` component in `services/frontend`.
+
+### Rexor's own MCP server — `POST /api/mcp.bxm?server=rexor`
+
+Registered in `Application.bx` via bx-ai's `MCPServer()` + `aiTool()` +
+`.registerTool()`, same mechanism `atlas-redteam` uses on the Python side,
+just BoxLang-native this time. Three tools: `list_target_types`,
+`create_test_plan`, `run_probes`. Complex arguments (`probeIds`,
+`targetAdapter`) are declared as plain strings and JSON-decoded inside the
+tool body, rather than relying on `aiTool()`'s type inference for
+arrays/structs — untested/unverified for that shape in bx-ai 3.5.0, and the
+tool descriptions already tell the calling model to pass JSON strings.
+
+The chat agent reaches this over a **loopback** HTTP call
+(`SELF_MCP_URL`, default `http://localhost:8080/api/mcp.bxm?server=rexor`
+— container-internal port, matches the `EXPOSE 8080` in the Dockerfile) —
+same `aiAgent( mcpServers: [...] )` mechanism as the ATLAS connection, just
+pointed at itself. Nothing stops an external MCP client from calling this
+endpoint directly either.
+
+### History — `GET /api/chats.bxm`, `GET /api/reports.bxm`
+
+Nothing here was lost on reload or deleted — chat transcripts and every
+report ever produced are kept as plain JSON files and listable:
+
+- `GET /api/chats.bxm` → `{ ok, chats: [{ conversationId, title, updatedAt,
+  messageCount }, ...] }`, newest first. `GET /api/chats.bxm?id=<id>` →
+  `{ ok, conversationId, title, updatedAt, messages }` — the full transcript,
+  used by the frontend to resume a past conversation (or to restore the
+  current one after a page reload).
+- `GET /api/reports.bxm` → `{ ok, reports: [{ report_id, target, started_at,
+  conversation_id, risk_score, probes_run, vulnerabilities }, ...] }`,
+  newest first. `GET /api/reports.bxm?id=<report_id>` → `{ ok, report:
+  {...} }`, the full envelope in the exact shape `reports`/`report.bxm`
+  expects — the frontend POSTs it straight there to re-render the HTML.
+
+Storage: `Executor.runProbes()` (shared by `execute.bxm` **and** the
+`run_probes` MCP tool) writes every report it produces to
+`/app/data/reports/<report_id>.json` — one history for both the classic
+form flow and the chat, no separate bookkeeping needed. `report_id` is
+`yyyyMMddHHmmss-<8 hex>`: a timestamp prefix means sorting filenames by name
+is already sorting by recency, no need to stat() every file to list them.
+`api/chat.bxm` writes each conversation to
+`/app/data/conversations/<conversationId>.json` as `{ conversationId,
+title, updatedAt, messages }` — `title` is set once, from the first
+message, so it doesn't drift as the conversation moves on.
+
+Same ephemeral-container-filesystem caveat as the chat transcripts
+themselves (see the gotcha below): fine for a demo, doesn't survive a
+container rebuild. A real deployment would put `/app/data` on a volume or
+swap the file I/O for a database — the read/write surface is small and
+already isolated to `Executor.bx` and the two history endpoints.
+
 ## Run
 
 ```bash
@@ -99,6 +183,30 @@ failure and degrades gracefully instead of crashing).
 `core`'s container can reach a target running on your own machine (e.g. a
 local n8n instance) via `http://host.docker.internal:<port>` — wired in
 `docker-compose.yml` via `extra_hosts`.
+
+## Gotchas found while building the chat/MCP layer
+
+- **`MCPRequestProcessor::startHttp()` doesn't exist** despite being the
+  exact example on the hosted bx-ai docs (`model-context-protocol-mcp/server/_examples.md`).
+  The real static method on the 3.5.0 class is **`processHttp()`** —
+  confirmed by dumping the class's real method list from the engine's own
+  error message when `startHttp` wasn't found.
+- **`aiMemory("file", ...)`'s real config key is `directoryPath`, not
+  `filePath`** (also undocumented precisely) — and even with that fixed, a
+  fresh `aiMemory()` instance constructed with the same `key`/`conversationId`
+  in a later call did **not** reload prior messages, and `add()` wrote a
+  separate file per message rather than appending to one conversation file.
+  Given a BoxLang MiniServer `.bxm` endpoint is a fresh execution per HTTP
+  request (no server-side session to hold a live agent/memory object across
+  turns), this made `aiMemory("file", ...)` unusable for cross-request chat
+  history as currently understood — see the chat.bxm section above for what
+  we did instead (plain JSON file per `conversationId`, written/read by us).
+- `aiTool()`'s parameter types are inferred from the closure signature with
+  no documented way to declare an array/struct param — untyped closure args
+  come through as `string` in the generated schema (verified via
+  `tools/list`), which is why `run_probes`'s `probeIds`/`targetAdapter` are
+  JSON-encoded strings decoded manually inside the tool, not native
+  array/struct params.
 
 ## Gotchas found while building this (verified against the real images)
 

@@ -15,7 +15,9 @@ WORKDIR /app
 COPY --from=modules /app/boxlang_modules ./boxlang_modules
 COPY boxlang.json ./boxlang.json
 COPY index.bxm ./index.bxm
+COPY Application.bx ./Application.bx
 COPY api ./api
+COPY models ./models
 
 # MiniServer does NOT auto-load boxlang.json from the webroot (verified) —
 # it needs this env var (or --configPath) to pick up modules.bxai.settings.

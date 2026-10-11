@@ -1,0 +1,69 @@
+/**
+ * Registers Rexor's own MCP server, exposing the platform's actions
+ * (not just ATLAS reference data) as tools a chat agent can call.
+ * Complex args are passed as JSON-encoded strings and decoded inside the
+ * tool, rather than relying on aiTool()'s type inference for arrays/structs
+ * (undocumented/unverified for bx-ai 3.5.0 — see services/core/README.md).
+ */
+class {
+
+    function onApplicationStart() {
+
+        var TARGET_TYPES = [
+            "Customer support chatbot",
+            "Coding agent",
+            "RAG / knowledge assistant",
+            "Autonomous task agent",
+            "Voice assistant",
+            "Multi-agent orchestrator"
+        ];
+
+        MCPServer( "rexor" )
+            .setDescription( "Rexor AI red-team platform actions: list supported target types, build an ATLAS-based test plan, and run probes against a real target." )
+            .setVersion( "1.0.0" )
+            .registerTool(
+                aiTool(
+                    "list_target_types",
+                    "List the fixed catalog of target AI types Rexor understands (e.g. chatbot, RAG assistant, coding agent). A target can match more than one.",
+                    () => jsonSerialize( TARGET_TYPES )
+                )
+            )
+            .registerTool(
+                aiTool(
+                    "create_test_plan",
+                    "Build a red-team test plan for a target AI: picks relevant MITRE ATLAS techniques and concrete probe ids. Call this once you know the target's type (from list_target_types) and a description of what it does, what tools/data it can access, and how users talk to it. Returns JSON: { targetType, plan } where plan is markdown text listing the chosen probe ids with rationale.",
+                    ( targetType, targetDescription ) => {
+                        return jsonSerialize( new models.Planner().createPlan( targetType, targetDescription ) );
+                    }
+                )
+            )
+            .registerTool(
+                aiTool(
+                    "run_probes",
+                    "Deliver chosen probes to the user's real target AI over HTTP and score the replies for vulnerabilities. probeIds must be a JSON array of probe id strings (from create_test_plan's plan). targetAdapter must be a JSON object: {url, method, headers, bodyTemplate, responsePath} describing how to call the target - bodyTemplate is the target's own JSON request shape with the literal string {{PROMPT}} where the attack text goes, and responsePath is a dot-path into the target's JSON reply (0-indexed for arrays, blank for raw text). conversationId must be the conversation id you were given - pass it exactly as given so the full HTML report becomes available to the user. Returns JSON: { findings: [...], report: { summary: { probes_run, vulnerabilities, risk_score }, ... } }.",
+                    ( probeIds, targetAdapter, conversationId = "" ) => {
+                        var ids     = jsonDeserialize( probeIds );
+                        var adapter = jsonDeserialize( targetAdapter );
+                        var result  = new models.Executor().runProbes( ids, adapter, "", conversationId );
+
+                        // Stashed for api/chat.bxm to pick up after agent.run()
+                        // returns - the agent's final reply is text-only, it
+                        // doesn't hand tool outputs back to the caller, so
+                        // this is how the full report JSON (for the
+                        // frontend's "view report" button) escapes the tool
+                        // call instead of being summarized away.
+                        if ( len( trim( conversationId ) ) ) {
+                            var convDir = "/app/data/conversations";
+                            if ( !directoryExists( convDir ) ) directoryCreate( convDir, true, true );
+                            fileWrite( convDir & "/" & conversationId & ".report.json", jsonSerialize( result.report ) );
+                        }
+
+                        return jsonSerialize( result );
+                    }
+                )
+            );
+
+        return true;
+    }
+
+}

@@ -220,12 +220,50 @@ funcione. Mencionarlo en la demo/README si alguien más conecta un n8n.
   falsos negativos.
 - ~~Target type como catálogo cerrado + probes como checklist~~ — hecho.
 - ~~URLs de `core`/`reports` fuera de la UI, a env var de build~~ — hecho.
-- **Visión a futuro (no empezado)**: interfaz estilo chat, AI-driven — que
-  una IA pueda manejar la plataforma entera vía MCP (bx-ai ya trae
-  `MCPServer()` para exponer tools). Requiere primero dejar nítido/estable
-  el flujo plan→execute→report actual (en eso estamos iterando con
-  feedback directo del usuario) antes de envolverlo en un MCP server propio
-  de Rexor.
+- ~~Visión a futuro: interfaz estilo chat, AI-driven, que maneje la
+  plataforma vía MCP~~ — hecho. `core` expone su propio MCP server (`POST
+  /api/mcp.bxm?server=rexor`, bx-ai `MCPServer()` + `aiTool()`, tools:
+  `list_target_types`, `create_test_plan`, `run_probes`) y un endpoint de
+  chat (`POST /api/chat.bxm`) con un `aiAgent` conectado a ESE mcp + al de
+  `atlas-redteam`, que arma el plan y corre los probes solo con lo que el
+  usuario escribe en lenguaje natural, preguntando lo que falte. Verificado
+  end-to-end (curl multi-turno con historial real + Playwright real) — un
+  solo mensaje con tipo, descripción y contrato HTTP del target completos
+  dispara plan→execute en el mismo turno y responde con el resumen de
+  hallazgos, sin alucinar probe ids. Gotchas de bx-ai encontrados en el
+  camino (`MCPRequestProcessor::processHttp()` en vez de `startHttp()` de
+  los docs, `aiMemory("file", ...)` poco confiable entre requests — se optó
+  por historial propio en JSON) documentados en
+  [services/core/README.md](./services/core/README.md).
+  **El flujo clásico de formularios sigue intacto** (`ClassicFlow.jsx`), el
+  chat es una capa alterna, no un reemplazo — toggle "Chat"/"Form" en la
+  topbar.
+- ~~Frontend del chat: de sidebar a landing full-page + fidelidad al design
+  system~~ — hecho. La landing ahora es el chat (estilo ChatGPT/Gemini,
+  `ChatView.jsx`), no un sidebar. Pasada de fidelidad real contra el design
+  system del equipo (`claude.ai/artifact/VSptAyxd4JAA4hQvBRmae8`): se
+  descubrió que el README de esa librería documenta una sección "Asistente
+  (chat)" (`ChatComposer`, `ChatMessage`, `DotBackground`, etc.) que
+  **nunca se implementó** en el `bundle.js` real (confirmado contra su
+  manifest) — es visión de marca, no código. Se construyó el chat a mano
+  seguiendo lo que sí está spec'd: el patrón `DotBackground` (grid de puntos
+  + núcleo carmesí detrás del composer, tokens `bg-dot`/`bg-dot-accent` que
+  no existían en nuestro `tokens.css`), set completo de íconos (paths SVG
+  verbatim del bundle, antes solo había 3 inventados), tipografía corregida
+  (`h1` real es 36/44, no 28/34), scrollbars globales (regla exacta de
+  `WEB.md`), y moderación del uso de crimson en burbujas de chat (el brand
+  book pide "una acción primary por vista", no fondos tintados).
+- ~~Historial de chats y de reportes~~ — hecho. Nada se pierde: `core`
+  archiva cada conversación (`/app/data/conversations/<id>.json`) y CADA
+  reporte que se genera —de classic flow o de chat, misma función
+  `Executor.runProbes()`— en `/app/data/reports/<report_id>.json`. Nuevos
+  endpoints `GET /api/chats.bxm` y `GET /api/reports.bxm` (listar + `?id=`
+  para el detalle). Panel de historial en el frontend (`HistoryPanel.jsx`,
+  botón "History" en la topbar) con tabs Chats/Reports (`SegmentedControl`
+  del design system) — click en un chat lo retoma (`ChatView` ahora hidrata
+  el transcript del server), click en un reporte lo abre en el visor de
+  `reports`. Mismo caveat de siempre: filesystem efímero del container, no
+  sobrevive un rebuild — para producción real, volumen o base de datos.
 - Bug abierto sin reproducir: ver nota arriba en la sección de `frontend`
   sobre el 400 intermitente de `report.bxm` en el navegador real del
   usuario.
