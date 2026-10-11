@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Break Me — arquitectura de microservicios",
+    "subtitle": "Pentesting automático de IAs con MITRE ATLAS (hackathon ANIA x Ortus)",
+    "output": "breakme.html",
+    "quality_profile": "showcase",
+    "legend": { "mode": "all" },
+    "repository": {
+      "url": "git@github.com:SalvadorGuerra777/Test.git",
+      "link_mode": "local-only",
+      "revision": "97932ad18e745ebca0963dc58255c47e4ab2b4f5"
+    }
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "Usuario", "sublabel": "navegador", "icon": "person", "pos": [40, 320], "size": [120, 60] },
+    { "id": "frontend", "type": "frontend", "label": "Frontend", "sublabel": "Vite + React :5173", "tag": "design system Rexor", "pos": [250, 320], "size": [150, 64],
+      "sources": [
+        { "path": "services/frontend/src/App.jsx", "line": 17, "end_line": 18, "label": "CORE_URL / REPORTS_URL" },
+        { "path": "services/frontend/src/App.jsx", "line": 84, "label": "POST run.bxm" },
+        { "path": "services/frontend/src/App.jsx", "line": 197, "label": "POST report.bxm" }
+      ]
+    },
+    { "id": "core", "type": "backend", "label": "Core", "sublabel": "BoxLang + bx-ai :8081", "pos": [570, 320], "size": [160, 64],
+      "sources": [
+        { "path": "services/core/api/run.bxm", "line": 47, "end_line": 59, "label": "aiAgent + MCP ATLAS" },
+        { "path": "services/core/api/execute.bxm", "line": 99, "end_line": 105, "label": "bx:http a target + judge" },
+        { "path": "services/core/docker-compose.yml", "line": 3, "end_line": 5, "label": "puerto 8081->8080" }
+      ]
+    },
+    { "id": "atlas", "type": "backend", "label": "atlas-redteam", "sublabel": "Python MCP :8765", "tag": "catálogo ATLAS + probes", "pos": [570, 120], "size": [160, 60],
+      "sources": [
+        { "path": "services/core/api/execute.bxm", "line": 79, "label": "mcp = MCP(atlasMcpUrl)" },
+        { "path": "services/atlas-redteam/docker-compose.yml", "line": 3, "end_line": 5, "label": "puerto 8765" }
+      ]
+    },
+    { "id": "minimax", "type": "external", "label": "MiniMax", "sublabel": "proveedor LLM (bx-ai)", "pos": [570, 520], "size": [160, 60],
+      "sources": [
+        { "path": "services/core/api/run.bxm", "line": 47, "label": "aiModel(provider: \"minimax\")" }
+      ]
+    },
+    { "id": "target", "type": "external", "label": "AI objetivo", "sublabel": "del usuario final", "tag": "vía targetAdapter", "pos": [880, 320], "size": [150, 64],
+      "sources": [
+        { "path": "services/core/api/execute.bxm", "line": 99, "end_line": 105, "label": "bx:http a adapter.url" }
+      ]
+    },
+    { "id": "reports", "type": "backend", "label": "Reports", "sublabel": "BoxLang MiniServer :8082", "pos": [250, 520], "size": [150, 60],
+      "sources": [
+        { "path": "services/reports/docker-compose.yml", "line": 3, "end_line": 5, "label": "puerto 8082" },
+        { "path": "services/reports/lib/ReportService.bx", "line": 39, "label": "render()" }
+      ]
+    }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Red Docker: microservices", "wraps": ["frontend", "core", "atlas", "reports"] }
+  ],
+  "connections": [
+    { "id": "user-to-frontend", "from": "user", "to": "frontend", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "frontend-to-core", "from": "frontend", "to": "core", "label": "POST run / execute / chat.bxm" },
+    { "id": "frontend-to-reports", "from": "frontend", "to": "reports", "label": "POST report.bxm", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "core-to-atlas", "from": "core", "to": "atlas", "label": "MCP (stateless HTTP)", "fromSide": "top", "toSide": "bottom" },
+    { "id": "core-to-minimax", "from": "core", "to": "minimax", "label": "LLM calls (aiAgent)", "fromSide": "bottom", "toSide": "top" },
+    { "id": "core-to-target", "from": "core", "to": "target", "label": "HTTP probes (targetAdapter)" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Frontend", "items": ["Catálogo cerrado de tipos de target", "Checklist de probes del plan", "Botón Generate report tras ejecutar"] },
+    { "dot": "emerald", "title": "Core (BoxLang + bx-ai)", "items": ["run.bxm: agente MiniMax elige técnicas/probes vía MCP de atlas-redteam", "execute.bxm: entrega probes al target real y los puntúa — sin LLM, determinístico", "En working tree (sin commitear): refactor a models/Planner.bx + Executor.bx, más chat.bxm/mcp.bxm — Core expondría su propio MCP (\"rexor\") para manejar run/execute vía un agente conversacional"] },
+    { "dot": "violet", "title": "atlas-redteam", "items": ["Catálogo MITRE ATLAS 2026.09: 16 tácticas, 208 técnicas, 40 mitigaciones", "Toolkit: list_probes, get_probe, judge_response"] },
+    { "dot": "amber", "title": "Reports", "items": ["Risk score ponderado por severidad (igual fórmula que el harness Python)", "HTML listo para imprimir como PDF", "En working tree (sin commitear): crosswalk OWASP (atlas-owasp-map.json) + assets de marca"] }
+  ]
+}

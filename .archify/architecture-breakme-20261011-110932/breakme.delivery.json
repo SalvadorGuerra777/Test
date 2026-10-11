@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "4a706706-5c71-4d30-846f-f2da91fb691c",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/pyload/breakme/.archify/architecture-breakme-20261011-110932/candidate.json",
+  "output": "/home/pyload/breakme/.archify/architecture-breakme-20261011-110932/breakme.html",
+  "specification": {
+    "sha256": "65b6e04fc5c5308d84830caf40bda7e918d7f67857fdd2b4cc1074f5f09bd268",
+    "bytes": 5050
+  },
+  "artifact": {
+    "sha256": "4b715bd4d33b776165e77b919e3ef5782321e440cf656de820ed3acea55c8408",
+    "bytes": 760031
+  }
+}
