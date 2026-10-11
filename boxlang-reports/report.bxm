@@ -1,0 +1,31 @@
+<bx:comment>
+  report.bxm — Web endpoint (microservice).
+  POST a red-team result JSON in the request body  ->  returns the HTML report.
+  GET ?sample=1                                    ->  renders the bundled sample.
+  Run with the BoxLang MiniServer from this folder:  boxlang-miniserver
+</bx:comment>
+<bx:script>
+    reqData  = getHTTPRequestData( true )
+    jsonText = ""
+
+    if ( structKeyExists( url, "sample" ) ) {
+        jsonText = fileRead( expandPath( "samples/sample-report.json" ) )
+    } else if ( structKeyExists( reqData, "content" ) && len( toString( reqData.content ) ) ) {
+        jsonText = toString( reqData.content )
+    }
+</bx:script>
+
+<bx:if len( jsonText ) EQ 0>
+    <bx:header statusCode="400" statusText="Bad Request">
+    <bx:content reset="true" type="text/plain; charset=utf-8">
+    <bx:output>Envie el JSON del resultado red-team en el cuerpo del POST, o abra ?sample=1 para una demostracion.</bx:output>
+    <bx:abort>
+</bx:if>
+
+<bx:script>
+    svc  = new lib.ReportService( expandPath( "data/atlas-mitigations.json" ) )
+    html = svc.render( jsonDeserialize( jsonText ) )
+</bx:script>
+
+<bx:content reset="true" type="text/html; charset=utf-8">
+<bx:output>#html#</bx:output>

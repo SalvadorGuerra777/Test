@@ -1,0 +1,7 @@
+/**
+ * demo.bxs - genera el reporte con rutas fijas (sin argumentos).
+ * Uso:  boxlang demo.bxs
+ */
+svc = new lib.ReportService( expandPath( "data/atlas-mitigations.json" ) )
+svc.renderToFile( jsonDeserialize( fileRead( "samples/sample-report.json" ) ), "reporte.html" )
+println( "OK -> wrote reporte.html" )
