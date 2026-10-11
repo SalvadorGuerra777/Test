@@ -1,4 +1,4 @@
-<bx:comment> index.bxm — landing page with usage + link to the sample report. </bx:comment><!doctype html>
+<!--- index.bxm — landing page with usage + link to the sample report. ---><!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>atlas-redteam · Microservicio de reportes (BoxLang)</title>

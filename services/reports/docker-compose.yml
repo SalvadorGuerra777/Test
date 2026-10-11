@@ -1,0 +1,11 @@
+services:
+  reports:
+    build: ./services/reports
+    ports:
+      - "8082:8080"
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    external: true

@@ -129,31 +129,64 @@ Verificado end-to-end con Playwright real (headless Chromium) contra
 `core`+`atlas-redteam` corriendo: plan real de MiniMax, 5/6 hallazgos
 vulnerables renderizados correctamente, cero errores de consola.
 
+### `services/reports` (BoxLang, MiniServer) — ya integrado y conectado
+
+Era `boxlang-reports/` en la raíz (lo subió el compañero sin seguir la
+convención de microservicios) — movido a `services/reports/` y empaquetado
+con Docker igual que los demás. `POST /report.bxm` con el JSON de
+resultado (mismo contrato que `atlas_redteam.harness.EvalReport.to_dict()`
+de Python) devuelve el reporte HTML con medidor de riesgo, cobertura ATLAS
+y tabla de hallazgos+mitigaciones. CORS agregado pa que el frontend lo
+llame directo.
+
+**`core`'s `/api/execute.bxm` ahora arma ese JSON automáticamente** —
+devuelve `{ ok, findings, report }`, donde `report` ya viene en el formato
+exacto que `reports` espera (mismo cálculo de `risk_score` que el harness
+Python: suma ponderada por severidad — info=0, low=1, medium=3, high=7,
+critical=12 — de hallazgos vulnerables sobre el total posible). El frontend
+solo hace `POST report a reports/report.bxm` y abre el HTML en pestaña
+nueva (botón "Generate report", visible después de correr los ataques).
+Verificado end-to-end con Playwright real: plan → ejecutar → reporte, los
+tres pasos encadenados sin tocar nada a mano, cero errores de consola.
+
+**Gotcha de `reports`**: tenía `<bx:comment>...</bx:comment>` como tag, que
+no existe en este runtime bajo MiniServer (tira
+`Component [comment] could not be found`) — cambiado a `<!--- ... --->`.
+
 ### `services/_template-python` y `services/_template-boxlang`
 
 Plantillas base pa nuevos servicios. Copiar, renombrar carpeta, reemplazar
-`change_me`, ajustar `.env`. (El servicio BoxLang real ya existe en
-`services/core`, estas plantillas son solo pa servicios adicionales.)
+`change_me`, ajustar `.env`. (Los servicios BoxLang reales ya existen en
+`services/core` y `services/reports`, estas plantillas son solo pa
+servicios adicionales.)
 
-### ⚠️ `boxlang-reports/` en la raíz del repo — no sigue la convención
+## Gotcha grande: n8n/webhooks async no sirven tal cual para `execute.bxm`
 
-El compañero subió un servicio de reportes BoxLang directo en la raíz
-(`boxlang-reports/`), no en `services/<nombre>/` con su propio
-Dockerfile/docker-compose. Rompe la convención de "cada servicio
-autocontenido, nadie toca archivos compartidos". Pendiente: moverlo a
-`services/reports/` y empaquetarlo igual que los demás (preguntado al
-equipo, no reorganizado todavía sin confirmar).
+Si tu target es un webhook n8n en modo **"Respond Immediately"**, la
+respuesta HTTP es un ack genérico ("Workflow was started") — la respuesta
+real del LLM se manda por otro canal (ej. de vuelta a WhatsApp), nunca
+llega al body que `execute.bxm` lee. Resultado: todos los probes salen
+"defended" aunque el bot esté totalmente desprotegido — el detector está
+evaluando el ack, no la respuesta real.
+
+**Fix necesario del lado del n8n del usuario**: el webhook tiene que
+responder de forma síncrona — nodo "Respond to Webhook" al final del flow,
+esperando a que el LLM termine, devolviendo su respuesta real en el body.
+No es un bug de `execute.bxm`; es un requisito de cómo tiene que estar
+configurado cualquier target para que el modelo request→response de Rexor
+funcione. Mencionarlo en la demo/README si alguien más conecta un n8n.
 
 ## Decisiones pendientes / siguiente paso
 
 - ~~Conseguir una `MINIMAX_API_KEY` real~~ — ya la tenemos, demo funcionando.
 - ~~Ejecución real de probes contra el target~~ — hecho (`execute.bxm`).
-- Reacomodar `boxlang-reports/` a `services/reports/` (ver arriba) —
-  confirmar con el equipo primero.
-- Conectar el reporte final: agregar los `findings` de `execute.bxm` en
-  algo presentable (puede ser el servicio de reportes del compañero, o
-  `atlas_redteam.report` que ya genera HTML/JSON).
+- ~~Reacomodar `boxlang-reports/`~~ — hecho, es `services/reports/`.
+- ~~Conectar el reporte final~~ — hecho, botón "Generate report" en el
+  frontend, flujo completo plan→execute→report verificado.
 - El artifact de Claude (`https://claude.ai/artifact/FWW6DfgT3byLT4sE13XFtZ`)
   que se hizo como primer borrador del frontend quedó obsoleto — el
   frontend real vive en `services/frontend/`. Pendiente borrar el artifact
   si nadie lo necesita.
+- Si alguien conecta un target n8n: verificar que su webhook use "Respond
+  to Webhook" síncrono (ver gotcha arriba), si no todos los findings salen
+  falsos negativos.

@@ -9,6 +9,26 @@ El diseño reproduce el reporte del harness de Python (medidor de riesgo,
 chips de severidad, cobertura de técnicas ATLAS y tabla de hallazgos +
 remediación), con soporte claro/oscuro.
 
+> Movido acá desde `boxlang-reports/` (raíz del repo) pa seguir la
+> convención de microservicios del proyecto — ver [README raíz](../../README.md).
+
+## Docker
+
+```bash
+cp .env.example .env 2>/dev/null || true   # no necesita variables, pero por consistencia
+../../scripts/compose.sh up --build reports
+curl -s "http://localhost:8082/report.bxm?sample=1" | head -c 200
+```
+
+`report.bxm` tiene CORS habilitado (`Access-Control-Allow-Origin: *` +
+preflight `OPTIONS`) — lo llama el frontend directo desde el navegador con
+el JSON que arma `core`'s `/api/execute.bxm`.
+
+**Gotcha encontrado**: `<bx:comment>...</bx:comment>` como tag NO existe en
+este runtime de BoxLang corriendo bajo MiniServer — tira
+`Component [comment] could not be found`. Se cambió por el comentario de
+plantilla real: `<!--- ... --->`.
+
 ## Estructura
 
 ```

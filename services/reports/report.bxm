@@ -1,19 +1,33 @@
-<bx:comment>
+<!---
   report.bxm — Web endpoint (microservice).
   POST a red-team result JSON in the request body  ->  returns the HTML report.
   GET ?sample=1                                    ->  renders the bundled sample.
   Run with the BoxLang MiniServer from this folder:  boxlang-miniserver
-</bx:comment>
+--->
+<bx:header name="Access-Control-Allow-Origin" value="*">
+<bx:header name="Access-Control-Allow-Methods" value="POST, OPTIONS">
+<bx:header name="Access-Control-Allow-Headers" value="Content-Type">
+
 <bx:script>
     reqData  = getHTTPRequestData( true )
     jsonText = ""
 
-    if ( structKeyExists( url, "sample" ) ) {
+    if ( compareNoCase( reqData.method, "OPTIONS" ) == 0 ) {
+        // CORS preflight: this endpoint is called directly from the browser
+        // (the frontend runs on its own origin), so it needs to answer the
+        // preflight before the real POST.
+    } else if ( structKeyExists( url, "sample" ) ) {
         jsonText = fileRead( expandPath( "samples/sample-report.json" ) )
     } else if ( structKeyExists( reqData, "content" ) && len( toString( reqData.content ) ) ) {
         jsonText = toString( reqData.content )
     }
 </bx:script>
+
+<bx:if compareNoCase( reqData.method, "OPTIONS" ) == 0>
+    <bx:header statusCode="204">
+    <bx:content reset="true" type="text/plain; charset=utf-8">
+    <bx:abort>
+</bx:if>
 
 <bx:if len( jsonText ) EQ 0>
     <bx:header statusCode="400" statusText="Bad Request">

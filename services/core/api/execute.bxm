@@ -62,8 +62,9 @@ if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
         parseFailed = true;
     }
 
-    probeIds = ( !parseFailed && isArray( body.probeIds ?: "" ) ) ? body.probeIds : [];
-    adapter  = body.targetAdapter ?: {};
+    probeIds   = ( !parseFailed && isArray( body.probeIds ?: "" ) ) ? body.probeIds : [];
+    adapter    = body.targetAdapter ?: {};
+    targetName = len( trim( body.target ?: "" ) ) ? body.target : ( adapter.url ?: "target" );
 
     if ( parseFailed || probeIds.isEmpty() || !structKeyExists( adapter, "url" ) || !structKeyExists( adapter, "bodyTemplate" ) ) {
         bx:header statusCode=400;
@@ -127,14 +128,93 @@ if ( compareNoCase( requestData.method, "OPTIONS" ) == 0 ) {
             if ( judgeResp.isSuccess() ) {
                 finding = judgeResp.getData().structuredContent;
                 finding[ "targetResponse" ] = targetText;
+                finding[ "probe_name" ]     = probeData.name ?: "";
+                finding[ "category" ]       = probeData.category ?: "";
+                finding[ "channel" ]        = probeData.channel ?: "";
                 findings.append( finding );
             } else {
                 findings.append( { "probeId": probeId, "error": "judge_response failed: " & judgeResp.getError(), "targetResponse": targetText } );
             }
         }
 
+        // ------------------------------------------------------------------
+        // Build the report envelope the `reports` microservice expects
+        // (same shape/formula as atlas_redteam.harness.EvalReport.to_dict(),
+        // so one report template covers both the Python harness output and
+        // this live-execution path). Only successful findings go in — a
+        // {probeId, error} entry isn't a scored finding.
+        // ------------------------------------------------------------------
+        SEV_WEIGHT = { "info": 0, "low": 1, "medium": 3, "high": 7, "critical": 12 };
+
+        reportFindings = findings.filter( ( f ) => !structKeyExists( f, "error" ) );
+
+        bySeverity = {};
+        byCategory = {};
+        atlasCoverage = {};
+        maxWeight = 0;
+        gotWeight = 0;
+
+        for ( f in reportFindings ) {
+            sevKey = f.severity ?: "info";
+            w = SEV_WEIGHT[ sevKey ] ?: 0;
+            maxWeight += w;
+            if ( f.vulnerable ) {
+                gotWeight += w;
+                bySeverity[ sevKey ] = ( bySeverity[ sevKey ] ?: 0 ) + 1;
+            }
+
+            cat = len( f.category ?: "" ) ? f.category : "uncategorized";
+            if ( !structKeyExists( byCategory, cat ) ) byCategory[ cat ] = { "total": 0, "vulnerable": 0 };
+            byCategory[ cat ].total++;
+            if ( f.vulnerable ) byCategory[ cat ].vulnerable++;
+
+            tech = f.atlas_technique ?: "";
+            if ( len( tech ) ) {
+                if ( !structKeyExists( atlasCoverage, tech ) ) {
+                    atlasCoverage[ tech ] = { "name": f.atlas_technique_name ?: tech, "tested": 0, "vulnerable": 0 };
+                }
+                atlasCoverage[ tech ].tested++;
+                if ( f.vulnerable ) atlasCoverage[ tech ].vulnerable++;
+            }
+        }
+
+        riskScore = maxWeight > 0 ? round( 100 * gotWeight / maxWeight ) : 0;
+
+        catalogVersion = "";
+        statsResp = mcp.send( "atlas_stats", {} );
+        if ( statsResp.isSuccess() ) {
+            catalogVersion = statsResp.getData().structuredContent.version ?: "";
+        }
+
+        reportEnvelope = {
+            "target"         : targetName,
+            "catalog_version": catalogVersion,
+            "started_at"     : dateTimeFormat( now(), "yyyy-MM-dd HH:mm:ss" ),
+            "rounds"         : 1,
+            "summary": {
+                "probes_run"     : reportFindings.len(),
+                "vulnerabilities": reportFindings.filter( ( f ) => f.vulnerable ).len(),
+                "risk_score"     : riskScore,
+                "by_severity"    : bySeverity,
+                "by_category"    : byCategory
+            },
+            "atlas_coverage": atlasCoverage,
+            "findings": reportFindings.map( ( f ) => ( {
+                "probe_id"            : f.probe_id,
+                "probe_name"          : f.probe_name,
+                "category"            : f.category,
+                "channel"             : f.channel,
+                "severity"            : f.severity,
+                "atlas_technique"     : f.atlas_technique,
+                "atlas_technique_name": f.atlas_technique_name,
+                "vulnerable"          : f.vulnerable,
+                "rationale"           : f.rationale,
+                "evidence"            : f.evidence ?: ""
+            } ) )
+        };
+
         bx:header statusCode=200;
-        writeOutput( jsonSerialize( { "ok": true, "findings": findings } ) );
+        writeOutput( jsonSerialize( { "ok": true, "findings": findings, "report": reportEnvelope } ) );
     }
 }
 </bx:script>

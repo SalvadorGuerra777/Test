@@ -5,6 +5,7 @@ import StatusPill from './components/StatusPill.jsx';
 import SeverityBadge from './components/SeverityBadge.jsx';
 
 const DEFAULT_CORE_URL = 'http://localhost:8081';
+const DEFAULT_REPORTS_URL = 'http://localhost:8082';
 const TARGET_TYPES = ['Customer support chatbot', 'Coding agent', 'RAG assistant', 'Autonomous task agent', 'Voice assistant'];
 const DEFAULT_BODY_TEMPLATE = '{\n  "mensaje": "{{PROMPT}}",\n  "sessionId": "rexor-test"\n}';
 const PROBE_ID_RE = /\b[A-Z]+(?:-[A-Z]+)*-\d{3}\b/g;
@@ -35,6 +36,7 @@ function extractProbeIds(text) {
 
 export default function App() {
   const [coreUrl, setCoreUrl] = useState(() => readStored('rexor-core-url', DEFAULT_CORE_URL));
+  const [reportsUrl, setReportsUrl] = useState(() => readStored('rexor-reports-url', DEFAULT_REPORTS_URL));
 
   const [targetType, setTargetType] = useState('Customer support chatbot');
   const [targetDescription, setTargetDescription] = useState(
@@ -54,14 +56,24 @@ export default function App() {
   const [execStatus, setExecStatus] = useState('idle');
   const [findings, setFindings] = useState([]);
   const [execError, setExecError] = useState('');
+  const [report, setReport] = useState(null);
+  const [reportStatus, setReportStatus] = useState('idle'); // idle | running | error
+  const [reportError, setReportError] = useState('');
 
   function onCoreUrlChange(v) {
     setCoreUrl(v);
     writeStored('rexor-core-url', v);
   }
+  function onReportsUrlChange(v) {
+    setReportsUrl(v);
+    writeStored('rexor-reports-url', v);
+  }
 
   function base() {
     return coreUrl.replace(/\/+$/, '');
+  }
+  function reportsBase() {
+    return reportsUrl.replace(/\/+$/, '');
   }
 
   function runPlan(ev) {
@@ -130,11 +142,15 @@ export default function App() {
     setExecStatus('running');
     setExecError('');
     setFindings([]);
+    setReport(null);
+    setReportStatus('idle');
+    setReportError('');
 
     fetch(`${base()}/api/execute.bxm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        target: targetType,
         probeIds,
         targetAdapter: {
           url: adapterUrl,
@@ -158,11 +174,38 @@ export default function App() {
       )
       .then((data) => {
         setFindings(data.findings || []);
+        setReport(data.report || null);
         setExecStatus('done');
       })
       .catch((err) => {
         setExecError(err.message || String(err));
         setExecStatus('error');
+      });
+  }
+
+  function openReport(ev) {
+    ev.preventDefault();
+    if (!report) return;
+    setReportStatus('running');
+    setReportError('');
+    fetch(`${reportsBase()}/report.bxm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(report)
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      })
+      .then((html) => {
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setReportStatus('idle');
+      })
+      .catch((err) => {
+        setReportError(err.message || String(err));
+        setReportStatus('error');
       });
   }
 
@@ -356,6 +399,33 @@ export default function App() {
               {findings.filter((f) => f.vulnerable).length} / {findings.length} vulnerable
             </span>
           </div>
+
+          {report ? (
+            <div className="row-end">
+              <details className="advanced">
+                <summary>Advanced: reports service address</summary>
+                <div className="field">
+                  <label htmlFor="f-reports-url">reports service URL</label>
+                  <input
+                    id="f-reports-url"
+                    className="input"
+                    value={reportsUrl}
+                    onChange={(e) => onReportsUrlChange(e.target.value)}
+                  />
+                </div>
+              </details>
+              <Button variant="primary" onClick={openReport} disabled={reportStatus === 'running'}>
+                {reportStatus === 'running' ? 'Building report…' : 'Generate report'}
+              </Button>
+            </div>
+          ) : null}
+          {reportStatus === 'error' ? (
+            <div className="error">
+              <b>Could not build the report. </b>
+              {reportError}
+            </div>
+          ) : null}
+
           {findings.map((f, i) => (
             <div className="finding" key={f.probe_id || i}>
               <div className="finding-head">
