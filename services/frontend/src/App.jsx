@@ -3,6 +3,10 @@ import { marked } from 'marked';
 import Button from './components/Button.jsx';
 import StatusPill from './components/StatusPill.jsx';
 import SeverityBadge from './components/SeverityBadge.jsx';
+import TextField from './components/TextField.jsx';
+import TextAreaField from './components/TextAreaField.jsx';
+import SelectField from './components/SelectField.jsx';
+import CheckboxGroup from './components/CheckboxGroup.jsx';
 
 // Core/reports addresses are deploy-time config, not something a user should
 // be able to repoint from the browser — baked in at build time via Vite env
@@ -11,6 +15,9 @@ import SeverityBadge from './components/SeverityBadge.jsx';
 const CORE_URL = (import.meta.env.VITE_CORE_URL || 'http://localhost:8081').replace(/\/+$/, '');
 const REPORTS_URL = (import.meta.env.VITE_REPORTS_URL || 'http://localhost:8082').replace(/\/+$/, '');
 
+// High-level catalog, not an extensive one — a real target is often more
+// than one of these at once (an agent that's also RAG-backed and voice
+// driven), so this is a checklist, not a single pick.
 const TARGET_TYPES = [
   'Customer support chatbot',
   'Coding agent',
@@ -47,7 +54,7 @@ function extractProbeOptions(text) {
 }
 
 export default function App() {
-  const [targetType, setTargetType] = useState('Customer support chatbot');
+  const [targetTypes, setTargetTypes] = useState(['Customer support chatbot']);
   const [targetDescription, setTargetDescription] = useState(
     'A support chatbot with order-lookup and refund-processing tools, backed by a RAG knowledge base of policy documents.'
   );
@@ -56,7 +63,7 @@ export default function App() {
   const [planError, setPlanError] = useState('');
 
   const [probeOptions, setProbeOptions] = useState([]); // [{id, name}]
-  const [selectedProbes, setSelectedProbes] = useState(() => new Set());
+  const [selectedProbeIds, setSelectedProbeIds] = useState([]);
   const [adapterUrl, setAdapterUrl] = useState('');
   const [adapterMethod, setAdapterMethod] = useState('POST');
   const [adapterHeaders, setAdapterHeaders] = useState('{}');
@@ -70,25 +77,16 @@ export default function App() {
   const [reportStatus, setReportStatus] = useState('idle'); // idle | running | error
   const [reportError, setReportError] = useState('');
 
-  function toggleProbe(id) {
-    setSelectedProbes((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   function runPlan(ev) {
     ev.preventDefault();
-    if (!targetType.trim()) return;
+    if (targetTypes.length === 0) return;
     setPlanStatus('running');
     setPlanError('');
     setPlan('');
     fetch(`${CORE_URL}/api/run.bxm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetType, targetDescription })
+      body: JSON.stringify({ targetType: targetTypes.join(', '), targetDescription })
     })
       .then((res) =>
         res
@@ -106,7 +104,7 @@ export default function App() {
         const options = extractProbeOptions(cleaned);
         setPlan(cleaned);
         setProbeOptions(options);
-        setSelectedProbes(new Set(options.map((o) => o.id)));
+        setSelectedProbeIds(options.map((o) => o.id));
         setPlanStatus('done');
       })
       .catch((err) => {
@@ -117,9 +115,7 @@ export default function App() {
 
   function runExecute(ev) {
     ev.preventDefault();
-    const probeIds = probeOptions.map((o) => o.id).filter((id) => selectedProbes.has(id));
-
-    if (probeIds.length === 0) {
+    if (selectedProbeIds.length === 0) {
       setExecError('Select at least one probe.');
       setExecStatus('error');
       return;
@@ -152,8 +148,8 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        target: targetType,
-        probeIds,
+        target: targetTypes.join(', '),
+        probeIds: selectedProbeIds,
         targetAdapter: {
           url: adapterUrl,
           method: adapterMethod,
@@ -229,6 +225,8 @@ export default function App() {
       });
   }
 
+  const probeCheckOptions = probeOptions.map((o) => ({ value: o.id, label: o.id, description: o.name || undefined }));
+
   return (
     <>
       <div className="topbar">
@@ -248,26 +246,21 @@ export default function App() {
 
       <form className="card" onSubmit={runPlan}>
         <h2>1. Pick a strategy</h2>
-        <div className="field">
-          <label htmlFor="f-type">Target type</label>
-          <select id="f-type" className="select" required value={targetType} onChange={(e) => setTargetType(e.target.value)}>
-            {TARGET_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="f-desc">Target description</label>
-          <textarea
-            id="f-desc"
-            className="textarea"
-            value={targetDescription}
-            onChange={(e) => setTargetDescription(e.target.value)}
-            placeholder="What it does, what tools or data it can access, how a user talks to it."
-          />
-        </div>
+        <CheckboxGroup
+          label="Target type"
+          required
+          hint="Pick everything that applies — a target can be more than one of these at once (e.g. an agent that's also RAG-backed)."
+          options={TARGET_TYPES.map((t) => ({ value: t, label: t }))}
+          value={targetTypes}
+          onChange={setTargetTypes}
+        />
+        <TextAreaField
+          id="f-desc"
+          label="Target description"
+          value={targetDescription}
+          onChange={(e) => setTargetDescription(e.target.value)}
+          placeholder="What it does, what tools or data it can access, how a user talks to it."
+        />
         <div className="row-end">
           {planStatus === 'running' ? <StatusPill status="running">Analyzing target&hellip;</StatusPill> : <span />}
           <Button type="submit" variant="primary" disabled={planStatus === 'running'}>
@@ -304,91 +297,65 @@ export default function App() {
             anything that takes JSON and replies with JSON.
           </p>
 
-          <div className="field">
-            <div className="field-head">
-              <label>Probes to run</label>
-              <div className="probe-select-actions">
-                <button type="button" className="link-btn" onClick={() => setSelectedProbes(new Set(probeOptions.map((o) => o.id)))}>
-                  Select all
-                </button>
-                <button type="button" className="link-btn" onClick={() => setSelectedProbes(new Set())}>
-                  Select none
-                </button>
-              </div>
-            </div>
-            <div className="probe-checklist">
-              {probeOptions.map((o) => (
-                <label key={o.id} className="probe-check">
-                  <input type="checkbox" checked={selectedProbes.has(o.id)} onChange={() => toggleProbe(o.id)} />
-                  <code className="mono">{o.id}</code>
-                  {o.name ? <span className="probe-name">{o.name}</span> : null}
-                </label>
-              ))}
-            </div>
-            <div className="hint">
-              Pulled from the plan above &mdash; {selectedProbes.size} / {probeOptions.length} selected.
-            </div>
-          </div>
+          <CheckboxGroup
+            label="Probes to run"
+            hint="Pulled from the plan above."
+            selectAll
+            scroll
+            options={probeCheckOptions}
+            value={selectedProbeIds}
+            onChange={setSelectedProbeIds}
+          />
 
-          <div className="grid-2">
-            <div className="field">
-              <label htmlFor="f-url">Target AI URL (the one being tested)</label>
-              <input
-                id="f-url"
-                className="input"
-                required
-                value={adapterUrl}
-                onChange={(e) => setAdapterUrl(e.target.value)}
-                placeholder="https://your-n8n-host/webhook/abc123"
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="f-method">Method</label>
-              <select id="f-method" className="select" value={adapterMethod} onChange={(e) => setAdapterMethod(e.target.value)}>
-                <option>POST</option>
-                <option>PUT</option>
-                <option>PATCH</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="field">
-            <label htmlFor="f-headers">Headers (JSON)</label>
-            <textarea
-              id="f-headers"
-              className="textarea mono"
-              value={adapterHeaders}
-              onChange={(e) => setAdapterHeaders(e.target.value)}
-              spellCheck={false}
+          <div className="rx-form-row">
+            <TextField
+              id="f-url"
+              label="Target AI URL (the one being tested)"
+              required
+              value={adapterUrl}
+              onChange={(e) => setAdapterUrl(e.target.value)}
+              placeholder="https://your-n8n-host/webhook/abc123"
             />
+            <SelectField id="f-method" label="Method" value={adapterMethod} onChange={(e) => setAdapterMethod(e.target.value)}>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>PATCH</option>
+            </SelectField>
           </div>
 
-          <div className="field">
-            <label htmlFor="f-body">Body template (JSON &mdash; use {'{{PROMPT}}'} where the attack goes)</label>
-            <textarea
-              id="f-body"
-              className="textarea mono"
-              value={adapterBody}
-              onChange={(e) => setAdapterBody(e.target.value)}
-              spellCheck={false}
-            />
-          </div>
+          <TextAreaField
+            id="f-headers"
+            label="Headers (JSON)"
+            mono
+            value={adapterHeaders}
+            onChange={(e) => setAdapterHeaders(e.target.value)}
+            spellCheck={false}
+          />
 
-          <div className="field">
-            <label htmlFor="f-resp-path">Response path</label>
-            <input
-              id="f-resp-path"
-              className="input mono"
-              value={adapterResponsePath}
-              onChange={(e) => setAdapterResponsePath(e.target.value)}
-              placeholder="0.output"
-            />
-            <div className="hint">
-              Dot-path into the target&rsquo;s JSON reply, 0-indexed for arrays &mdash; e.g. <code>0.output</code> for
-              an n8n webhook replying <code>[{'{'}"output": "..."{'}'}]</code>. Leave blank to use the raw response
-              body as text.
-            </div>
-          </div>
+          <TextAreaField
+            id="f-body"
+            label={<>Body template (JSON &mdash; use {'{{PROMPT}}'} where the attack goes)</>}
+            mono
+            value={adapterBody}
+            onChange={(e) => setAdapterBody(e.target.value)}
+            spellCheck={false}
+          />
+
+          <TextField
+            id="f-resp-path"
+            label="Response path"
+            mono
+            value={adapterResponsePath}
+            onChange={(e) => setAdapterResponsePath(e.target.value)}
+            placeholder="0.output"
+            hint={
+              <>
+                Dot-path into the target&rsquo;s JSON reply, 0-indexed for arrays &mdash; e.g. <code>0.output</code>{' '}
+                for an n8n webhook replying <code>[{'{'}"output": "..."{'}'}]</code>. Leave blank to use the raw
+                response body as text.
+              </>
+            }
+          />
 
           <div className="row-end">
             {execStatus === 'running' ? <StatusPill status="running">Running probes&hellip;</StatusPill> : <span />}

@@ -3,18 +3,27 @@
 **Rexor's web UI.** Vite + React, plain CSS (no component library) — ports
 the [Rexor design system](https://claude.ai/artifact/VSptAyxd4JAA4hQvBRmae8)
 (`src/styles/tokens.css`, `src/styles/rexor.css`, logo SVGs in `public/`)
-directly into real code instead of a hosted artifact.
+directly into real code instead of a hosted artifact. Form components
+(`src/components/{Field,TextField,TextAreaField,SelectField,CheckboxGroup}.jsx`)
+port the system's form components' class names (`rx-field`, `rx-input`,
+`rx-check`, `rx-fieldset`, …) and markup shape verbatim from the design
+system's `project/components/bundle.css` — not hand-invented — so this
+stays visually in sync with the system if it changes.
 
 ## What it does
 
 Two-step flow against [`core`](../core):
 
-1. **Plan** — target type (picked from a fixed high-level catalog: customer
-   support chatbot, coding agent, RAG/knowledge assistant, autonomous task
-   agent, voice assistant, multi-agent orchestrator) + free-text description
-   → `POST /api/run.bxm` → renders the markdown test plan `core` comes back
-   with, and parses the probe table into a checklist (falls back to bare
-   probe ids if the model didn't reply with the expected table shape).
+1. **Plan** — target type(s) (checklist over a fixed high-level catalog:
+   customer support chatbot, coding agent, RAG/knowledge assistant,
+   autonomous task agent, voice assistant, multi-agent orchestrator — a real
+   target is often more than one of these at once, e.g. an agent that's also
+   RAG-backed, so it's multi-select, not a single pick) + free-text
+   description → `POST /api/run.bxm` (sent as a comma-joined string — `core`
+   just treats it as descriptive text) → renders the markdown test plan
+   `core` comes back with, and parses the probe table into a checklist
+   (falls back to bare probe ids if the model didn't reply with the
+   expected table shape).
 2. **Execute** — pick which probes to run (checkboxes, select all/none) and
    define your target's HTTP contract (URL, method, headers, a JSON
    `bodyTemplate` with `{{PROMPT}}` where the attack goes, and a

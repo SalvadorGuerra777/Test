@@ -64,29 +64,50 @@ p.lede { font-size: 15px; line-height: 24px; color: var(--ink-muted); margin: va
 .card h2 { font-family: var(--font-display); font-size: 18px; line-height: 26px; font-weight: 600; margin: 0; }
 .card .section-hint { font-size: 13px; line-height: 20px; color: var(--ink-muted); margin: -8px 0 0; }
 
-.field { display: grid; gap: var(--space-2); min-width: 0; }
-.field label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); }
-.field .hint { font-size: 12px; line-height: 18px; color: var(--ink-muted); font-weight: 400; letter-spacing: normal; text-transform: none; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-@media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+/* ===== Forms (ported verbatim from the design system's components/bundle.css,
+   class names and all, so this stays in sync with it) ===== */
+.rx-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.rx-form { display: grid; gap: var(--space-6); max-width: var(--form-max); }
+.rx-form-row { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
+@media (min-width: 640px) { .rx-form-row { grid-template-columns: 1fr 1fr; } }
+.rx-field { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.rx-label { font-size: 13px; line-height: 20px; font-weight: 500; color: var(--ink); padding: 0; }
+.rx-req { color: var(--field-invalid); }
+.rx-opt { color: var(--ink-muted); font-weight: 400; }
+.rx-hint { font-size: 13px; line-height: 20px; color: var(--ink-muted); }
+.rx-error { display: flex; gap: 6px; align-items: flex-start; font-size: 13px; line-height: 20px; font-weight: 500; color: var(--field-invalid); }
+.rx-error .rx-icon { margin-top: 2px; }
+.rx-input { box-sizing: border-box; width: 100%; height: var(--control-height); padding: 0 var(--space-3); font: inherit; font-size: 14px; line-height: 20px; color: var(--ink); background: var(--surface-raised); border: 1px solid var(--line-strong); border-radius: var(--radius-md); transition: border-color .12s ease-out; }
+.rx-input::placeholder { color: var(--ink-muted); opacity: 1; }
+.rx-input:hover { border-color: var(--ink-muted); }
+.rx-input:focus { outline: none; }
+.rx-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-color: var(--crimson); }
+.rx-input[aria-invalid="true"] { border-color: var(--field-invalid); box-shadow: inset 0 0 0 1px var(--field-invalid); }
+.rx-input:disabled { background: var(--surface-sunken); color: var(--ink-muted); border-color: var(--line); cursor: not-allowed; }
+.rx-mono { font-family: var(--font-mono); font-size: 13px; }
+.rx-textarea { height: auto; min-height: 96px; padding: 10px var(--space-3); resize: vertical; }
+.rx-select-wrap { position: relative; }
+.rx-select { appearance: none; -webkit-appearance: none; padding-right: 36px; cursor: pointer; }
+.rx-select-chev { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-muted); pointer-events: none; }
+.rx-fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: var(--space-2); min-width: 0; }
+.rx-fieldset > legend { margin-bottom: var(--space-2); }
+.rx-check { position: relative; display: flex; gap: var(--space-3); align-items: flex-start; cursor: pointer; font-size: 14px; line-height: 20px; color: var(--ink); }
+.rx-check-text { display: grid; gap: 2px; }
+.rx-check-desc { font-size: 13px; line-height: 20px; color: var(--ink-muted); }
+.rx-box { flex: none; box-sizing: border-box; width: 18px; height: 18px; margin-top: 1px; display: grid; place-items: center; border: 1.5px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised); color: var(--on-crimson); transition: background .12s ease-out, border-color .12s ease-out; }
+.rx-box .rx-icon { opacity: 0; stroke-width: 2.5; }
+.rx-check:hover .rx-box { border-color: var(--ink-muted); }
+.rx-check input:checked + .rx-box { background: var(--crimson); border-color: var(--crimson); }
+.rx-check input:checked + .rx-box .rx-icon { opacity: 1; }
+.rx-check input:focus-visible + .rx-box { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.rx-check input:disabled + .rx-box { background: var(--surface-sunken); border-color: var(--line); }
+.rx-check-disabled, .rx-check:has(input:disabled) { color: var(--ink-muted); cursor: not-allowed; }
+.rx-radio-list { display: grid; gap: var(--space-3); }
+/* App-specific variants, not from the source system (it has no long-list case) */
+.rx-radio-list-scroll { max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-3); gap: var(--space-2); }
+.rx-check-all { padding-bottom: var(--space-2); margin-bottom: var(--space-1); border-bottom: 1px solid var(--line); }
 
-.input, .textarea, .select {
-  font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md); padding: var(--space-3); width: 100%; min-width: 0;
-}
-.textarea { resize: vertical; min-height: 96px; line-height: 20px; }
-.textarea.mono, .input.mono { font-family: var(--font-mono); font-size: 13px; }
-.input:focus-visible, .textarea:focus-visible, .select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .row-end { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
-
-.field-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
-.probe-select-actions { display: flex; gap: var(--space-3); }
-.link-btn { font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--crimson); background: none; border: none; padding: 0; cursor: pointer; }
-.link-btn:hover { text-decoration: underline; }
-.probe-checklist { display: grid; gap: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-3); max-height: 260px; overflow-y: auto; }
-.probe-check { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; }
-.probe-check input[type="checkbox"] { accent-color: var(--crimson); }
-.probe-name { color: var(--ink-muted); }
 
 .error { background: var(--sev-critical-soft); color: var(--sev-critical); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-size: 13px; line-height: 20px; display: grid; gap: var(--space-1); }
 .error b { font-weight: 600; }
