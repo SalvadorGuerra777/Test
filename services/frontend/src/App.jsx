@@ -188,6 +188,16 @@ export default function App() {
     if (!report) return;
     setReportStatus('running');
     setReportError('');
+
+    // Open the tab synchronously, inside the click handler, so browsers
+    // (Brave/Chrome/Safari) don't treat it as an unsolicited popup — if we
+    // open it after the fetch resolves, it's no longer tied to the user
+    // gesture and gets silently blocked.
+    const reportWindow = window.open('', '_blank');
+    if (reportWindow) {
+      reportWindow.document.write('<p style="font:14px sans-serif;padding:2rem">Building report&hellip;</p>');
+    }
+
     fetch(`${reportsBase()}/report.bxm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -198,12 +208,20 @@ export default function App() {
         return res.text();
       })
       .then((html) => {
-        const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        if (reportWindow) {
+          reportWindow.document.open();
+          reportWindow.document.write(html);
+          reportWindow.document.close();
+        } else {
+          // Popup blocked even for the synchronous open (some strict
+          // settings do this) — fall back to a download-free same-tab view.
+          const blob = new Blob([html], { type: 'text/html' });
+          window.location.href = URL.createObjectURL(blob);
+        }
         setReportStatus('idle');
       })
       .catch((err) => {
+        if (reportWindow) reportWindow.close();
         setReportError(err.message || String(err));
         setReportStatus('error');
       });
