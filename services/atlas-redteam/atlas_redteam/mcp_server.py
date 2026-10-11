@@ -207,7 +207,13 @@ def main() -> None:
     if "--http" in sys.argv:
         host = os.environ.get("ATLAS_MCP_HOST", "127.0.0.1")
         port = int(os.environ.get("ATLAS_MCP_PORT", "8765"))
-        server.run(transport="streamable-http", host=host, port=port)
+        # stateless_http=True: the core/orchestrator microservice (BoxLang + bx-ai)
+        # talks to this server with a minimal MCP HTTP client that issues plain
+        # JSON-RPC POSTs (tools/list, tools/call) without the streamable-http
+        # session handshake (Mcp-Session-Id). Without this flag the official MCP
+        # Python SDK rejects those requests with "Bad Request: Missing session ID".
+        # Verified against bx-ai 3.5.0's MCP() client.
+        server.run(transport="streamable-http", host=host, port=port, stateless_http=True)
     else:
         server.run(transport="stdio")
 

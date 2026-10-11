@@ -12,6 +12,7 @@ estado del proyecto.
 | Servicio | Stack | Qué hace |
 |---|---|---|
 | [`atlas-redteam`](./services/atlas-redteam) | Python, MCP | Catálogo MITRE ATLAS + toolkit de probes/attack corpus, expuesto como servidor MCP. Fuente de verdad de "qué ataques existen" y "cómo evaluar una respuesta". |
+| [`core`](./services/core) | BoxLang + bx-ai (MiniMax) | Orquestador: dado el tipo de IA a testear, consulta el MCP de `atlas-redteam` pa elegir técnicas/probes, y usa un `aiAgent` pa producir el plan de análisis. Es el componente que cumple el requisito BoxLang + BoxLang AI del reto. |
 | [`_template-python`](./services/_template-python) | Python/FastAPI | Plantilla base pa nuevos servicios Python (ej. servicio de reportes). |
 | [`_template-boxlang`](./services/_template-boxlang) | BoxLang (MiniServer) | Plantilla base pa el servicio BoxLang/BoxLang AI (requisito del reto). |
 

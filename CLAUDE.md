@@ -65,25 +65,55 @@ como **servidor MCP**.
   alcanzable como `http://atlas-redteam:8765` desde otros servicios en la
   red `microservices`).
 - Detalle completo: [services/atlas-redteam/README.md](./services/atlas-redteam/README.md).
-- **Pendiente**: este servicio es el catálogo/herramienta de ataques; falta
-  el orquestador (probablemente el servicio BoxLang) que consuma este MCP,
-  decida qué ataques usar según el target, y dispare las pruebas contra la
-  IA del usuario final. Ese es el siguiente bloque a construir.
+- **Fix importante que le hicimos**: el server corría con
+  `transport="streamable-http"` sin `stateless_http=True`. El cliente MCP de
+  bx-ai no hace el handshake de sesión que exige el SDK oficial por default,
+  así que fallaba con `Bad Request: Missing session ID`. Ya está arreglado
+  en `atlas_redteam/mcp_server.py` — **no revertir ese flag**.
+
+### `services/core` (BoxLang + bx-ai, provider MiniMax) — ya integrado, MVP funcional
+
+El orquestador. Cumple el requisito #1/#2 del reto (BoxLang + BoxLang AI en
+una función real). Flujo implementado:
+
+1. `POST /api/run.bxm` con `{ targetType, targetDescription }`.
+2. Arma un `aiAgent` conectado al MCP de `atlas-redteam`
+   (`mcpServers: [ATLAS_MCP_URL]`) — el agente recibe como tools tanto la
+   referencia ATLAS como el toolkit de probes.
+3. El agente (modelo MiniMax) elige técnicas/probes relevantes y devuelve
+   un plan.
+4. Responde `{ ok, targetType, plan }`.
+
+Verificado end-to-end corriendo los contenedores reales (build + run, no
+solo lectura de docs): instalación del módulo `bx-ai`, carga de
+`boxlang.json`, conexión MCP real contra `atlas-redteam`, y la llamada
+real a la API de MiniMax (confirmada hasta el 401 de "fake key" — o sea
+todo el wiring funciona, solo falta una `MINIMAX_API_KEY` real).
+Detalle completo + gotchas de BoxLang/bx-ai encontrados (y cómo se
+resolvieron) en [services/core/README.md](./services/core/README.md) —
+vale la pena leerlo antes de tocar este servicio, documenta varias cosas
+donde la documentación oficial de bx-ai está desactualizada o incompleta
+respecto a la versión instalada (3.5.0).
+
+**Pendiente en `core`**: solo produce la *estrategia* (qué probes aplican y
+por qué). Falta la ejecución real: entregar cada probe al agente del
+usuario final (vía HTTP a un endpoint que el usuario provea, o algún otro
+canal) y llamar `judge_response` del MCP pa anotar hallazgos. Esa es la
+siguiente pieza a construir en este servicio.
 
 ### `services/_template-python` y `services/_template-boxlang`
 
 Plantillas base pa nuevos servicios. Copiar, renombrar carpeta, reemplazar
-`change_me`, ajustar `.env`. El servicio BoxLang es el candidato natural pa
-el orquestador que cumple el requisito #1/#2 de las reglas (usa `bx-ai`
-en una función real: decidir y ejecutar ataques).
+`change_me`, ajustar `.env`. (El servicio BoxLang real ya existe en
+`services/core`, estas plantillas son solo pa servicios adicionales.)
 
 ## Decisiones pendientes / siguiente paso
 
-- Definir el componente BoxLang + `bx-ai` que:
-  1. Pregunte al usuario qué tipo de IA/agente quiere testear.
-  2. Consuma el MCP de `atlas-redteam` pa listar técnicas aplicables.
-  3. Decida y ejecute el subconjunto de ataques relevante.
-  4. Agregue resultados y arme el reporte final (puede delegar en
-     `atlas_redteam.report` o un servicio de reportes Python aparte).
-- Si se necesita un tercer servicio de reportes en Python, copiar
-  `_template-python` (no reinventar estructura).
+- Conseguir una `MINIMAX_API_KEY` real pa probar `core` de punta a punta
+  (el wiring ya está 100% verificado, solo falta la key).
+- En `core`: implementar la entrega real de probes al agente del usuario
+  final + scoring con `judge_response`, y devolver un reporte agregado
+  (puede delegar en `atlas_redteam.report` o en el servicio de reportes
+  Python del compañero).
+- Servicio de reportes (a cargo del compañero): copiar `_template-python`
+  (no reinventar estructura).
