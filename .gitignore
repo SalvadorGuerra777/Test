@@ -22,3 +22,9 @@ services/*/.env
 
 # material de referencia local, no es parte del proyecto
 *.pdf
+
+# tooling local de agentes/IA (skills instaladas, salidas generadas) — no es parte del producto
+.agents/
+.archify/
+skills-lock.json
+graphify-out/
