@@ -21,6 +21,37 @@ reembolsos y un RAG de políticas"), y la plataforma:
    hallazgos) y genera un reporte HTML con riesgo, cobertura ATLAS y
    mitigaciones.
 
+### Capturas
+
+**Chat (vista por defecto):** describís el bot en lenguaje natural; a la
+derecha, el historial de reportes con su nivel de riesgo.
+
+![Chat home](docs/screenshots/01-chat-home.png)
+
+El asistente identifica el tipo de target y pide lo que le falte antes de
+atacar:
+
+![Conversación](docs/screenshots/02-chat-conversation.png)
+
+**Formulario clásico**, paso a paso, para quien prefiere controlar cada
+parámetro:
+
+![Formulario](docs/screenshots/03-classic-form.png)
+
+**Historial** de chats y reportes:
+
+![Historial](docs/screenshots/04-history.png)
+
+**Reporte** (listo para PDF), con cada hallazgo mapeado a MITRE ATLAS y
+OWASP LLM, impacto y remediación:
+
+![Reporte — portada](docs/screenshots/05-report.png)
+![Reporte — hallazgo](docs/screenshots/05b-report-finding.png)
+
+Modo oscuro:
+
+![Modo oscuro](docs/screenshots/06-chat-home-dark.png)
+
 ### Cómo usamos BoxLang y BoxLang AI
 
 - `services/core` está escrito en **BoxLang** y es el orquestador de todo
