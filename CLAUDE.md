@@ -122,12 +122,40 @@ UI real en código (no artifact de Claude) usando el design system Rexor
 portado a CSS/componentes propios (`src/styles/tokens.css`,
 `src/styles/rexor.css`, logos en `public/`, ver
 [services/frontend/README.md](./services/frontend/README.md)). Flujo: form
-de target → `run.bxm` → muestra el plan (markdown) y auto-extrae los probe
-ids → form del `targetAdapter` (precargado con un ejemplo estilo n8n) →
-`execute.bxm` → tarjetas de hallazgos con severidad/vulnerable-defendido.
-Verificado end-to-end con Playwright real (headless Chromium) contra
-`core`+`atlas-redteam` corriendo: plan real de MiniMax, 5/6 hallazgos
-vulnerables renderizados correctamente, cero errores de consola.
+de target (tipo elegido de un catálogo cerrado de alto nivel — chatbot,
+coding agent, RAG assistant, autonomous task agent, voice assistant,
+multi-agent orchestrator — no texto libre) → `run.bxm` → muestra el plan
+(markdown) y parsea la tabla de probes en un checklist (checkboxes,
+select-all/none; cae a solo mostrar el id si el modelo no respondió con la
+tabla esperada) → form del `targetAdapter` (precargado con un ejemplo estilo
+n8n) → `execute.bxm` → tarjetas de hallazgos con severidad/
+vulnerable-defendido. Verificado end-to-end con Playwright real (headless
+Chromium) contra `core`+`atlas-redteam` corriendo, cero errores de consola.
+
+**Las URLs de `core`/`reports` ya NO son editables desde la UI** — son
+config de despliegue, se hornean en el bundle JS en build time vía env vars
+de Vite (`VITE_CORE_URL`, `VITE_REPORTS_URL`, default a los puertos locales
+8081/8082). No hay servidor detrás de este build estático que pueda leer un
+env var en runtime, así que esto es lo correcto. Se pasan como build args
+en `services/frontend/docker-compose.yml` (default a `localhost`, override
+exportando las env vars antes de `compose.sh build frontend`). Verificado
+empíricamente que sí quedan inlineadas en el JS compilado (grep del bundle
+por un valor marcador pasado en build).
+
+**Bug abierto, no resuelto**: `POST /report.bxm` a veces da 400 ("Envie el
+JSON...") solo desde el navegador real del usuario (Brave, Windows) al
+darle "Generate report" — **nunca** se pudo reproducir: ni con curl directo
+(incluyendo el "Copy as cURL" exacto capturado de su devtools, mismo
+payload/headers → 200), ni con Playwright/Chromium real simulando el mismo
+fetch repetido 10x, ni variando tamaño/contenido del payload. El error 400
+viene de `report.bxm` mismo (`jsonText` len 0 → `getHTTPRequestData` no
+leyó body), no es el bug del popup-blocker (ya arreglado aparte). Se
+reinició el stack completo por sugerencia del usuario (pudo ser caché/estado
+viejo) — pendiente que el usuario reconfirme si persiste tras eso. Si
+persiste: pedir repro con DevTools "Disable cache" apagado (esa opción
+inyecta headers `Cache-Control`/`Pragma` que vimos en su request real y que
+no están en `Access-Control-Allow-Headers` del server — posible culprit de
+preflight no identificado a fondo).
 
 ### `services/reports` (BoxLang, MiniServer) — ya integrado y conectado
 
@@ -190,3 +218,14 @@ funcione. Mencionarlo en la demo/README si alguien más conecta un n8n.
 - Si alguien conecta un target n8n: verificar que su webhook use "Respond
   to Webhook" síncrono (ver gotcha arriba), si no todos los findings salen
   falsos negativos.
+- ~~Target type como catálogo cerrado + probes como checklist~~ — hecho.
+- ~~URLs de `core`/`reports` fuera de la UI, a env var de build~~ — hecho.
+- **Visión a futuro (no empezado)**: interfaz estilo chat, AI-driven — que
+  una IA pueda manejar la plataforma entera vía MCP (bx-ai ya trae
+  `MCPServer()` para exponer tools). Requiere primero dejar nítido/estable
+  el flujo plan→execute→report actual (en eso estamos iterando con
+  feedback directo del usuario) antes de envolverlo en un MCP server propio
+  de Rexor.
+- Bug abierto sin reproducir: ver nota arriba en la sección de `frontend`
+  sobre el 400 intermitente de `report.bxm` en el navegador real del
+  usuario.

@@ -1,6 +1,10 @@
 services:
   frontend:
-    build: ./services/frontend
+    build:
+      context: ./services/frontend
+      args:
+        VITE_CORE_URL: ${VITE_CORE_URL:-http://localhost:8081}
+        VITE_REPORTS_URL: ${VITE_REPORTS_URL:-http://localhost:8082}
     ports:
       - "5173:80"
     networks:

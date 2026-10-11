@@ -4,40 +4,49 @@ import Button from './components/Button.jsx';
 import StatusPill from './components/StatusPill.jsx';
 import SeverityBadge from './components/SeverityBadge.jsx';
 
-const DEFAULT_CORE_URL = 'http://localhost:8081';
-const DEFAULT_REPORTS_URL = 'http://localhost:8082';
-const TARGET_TYPES = ['Customer support chatbot', 'Coding agent', 'RAG assistant', 'Autonomous task agent', 'Voice assistant'];
-const DEFAULT_BODY_TEMPLATE = '{\n  "mensaje": "{{PROMPT}}",\n  "sessionId": "rexor-test"\n}';
-const PROBE_ID_RE = /\b[A-Z]+(?:-[A-Z]+)*-\d{3}\b/g;
+// Core/reports addresses are deploy-time config, not something a user should
+// be able to repoint from the browser — baked in at build time via Vite env
+// vars (see services/frontend/Dockerfile and docker-compose.yml), falling
+// back to the local dev stack's default ports.
+const CORE_URL = (import.meta.env.VITE_CORE_URL || 'http://localhost:8081').replace(/\/+$/, '');
+const REPORTS_URL = (import.meta.env.VITE_REPORTS_URL || 'http://localhost:8082').replace(/\/+$/, '');
 
-function readStored(key, fallback) {
-  try {
-    return localStorage.getItem(key) || fallback;
-  } catch {
-    return fallback;
-  }
-}
-function writeStored(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // ignore: private browsing / blocked storage
-  }
-}
+const TARGET_TYPES = [
+  'Customer support chatbot',
+  'Coding agent',
+  'RAG / knowledge assistant',
+  'Autonomous task agent',
+  'Voice assistant',
+  'Multi-agent orchestrator'
+];
+const DEFAULT_BODY_TEMPLATE = '{\n  "mensaje": "{{PROMPT}}",\n  "sessionId": "rexor-test"\n}';
+const PROBE_ROW_RE = /^\|\s*\**([A-Z]+(?:-[A-Z]+)*-\d{3})\**\s*\|\s*([^|]+?)\s*\|/gm;
+const PROBE_ID_RE = /\b[A-Z]+(?:-[A-Z]+)*-\d{3}\b/g;
 
 function stripThinking(text) {
   return String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }
 
-function extractProbeIds(text) {
-  const matches = String(text || '').match(PROBE_ID_RE) || [];
-  return [...new Set(matches)].join(', ');
+// Pulls { id, name } pairs out of the plan's probe table. The model doesn't
+// always lay the table out the same way (sometimes the 2nd column is a
+// human name, sometimes it's already the ATLAS technique id) — if what we
+// grabbed looks like a technique id rather than a name, drop it and just
+// show the bare probe id instead of a misleading label.
+function extractProbeOptions(text) {
+  const body = String(text || '');
+  const seen = new Map();
+  for (const m of body.matchAll(PROBE_ROW_RE)) {
+    const [, id, col2] = m;
+    const name = col2.replace(/\*\*/g, '').trim();
+    if (!seen.has(id)) seen.set(id, /^AML\.T\d/.test(name) ? '' : name);
+  }
+  if (seen.size === 0) {
+    for (const id of new Set(body.match(PROBE_ID_RE) || [])) seen.set(id, '');
+  }
+  return [...seen.entries()].map(([id, name]) => ({ id, name }));
 }
 
 export default function App() {
-  const [coreUrl, setCoreUrl] = useState(() => readStored('rexor-core-url', DEFAULT_CORE_URL));
-  const [reportsUrl, setReportsUrl] = useState(() => readStored('rexor-reports-url', DEFAULT_REPORTS_URL));
-
   const [targetType, setTargetType] = useState('Customer support chatbot');
   const [targetDescription, setTargetDescription] = useState(
     'A support chatbot with order-lookup and refund-processing tools, backed by a RAG knowledge base of policy documents.'
@@ -46,7 +55,8 @@ export default function App() {
   const [plan, setPlan] = useState('');
   const [planError, setPlanError] = useState('');
 
-  const [probeIdsText, setProbeIdsText] = useState('');
+  const [probeOptions, setProbeOptions] = useState([]); // [{id, name}]
+  const [selectedProbes, setSelectedProbes] = useState(() => new Set());
   const [adapterUrl, setAdapterUrl] = useState('');
   const [adapterMethod, setAdapterMethod] = useState('POST');
   const [adapterHeaders, setAdapterHeaders] = useState('{}');
@@ -60,20 +70,13 @@ export default function App() {
   const [reportStatus, setReportStatus] = useState('idle'); // idle | running | error
   const [reportError, setReportError] = useState('');
 
-  function onCoreUrlChange(v) {
-    setCoreUrl(v);
-    writeStored('rexor-core-url', v);
-  }
-  function onReportsUrlChange(v) {
-    setReportsUrl(v);
-    writeStored('rexor-reports-url', v);
-  }
-
-  function base() {
-    return coreUrl.replace(/\/+$/, '');
-  }
-  function reportsBase() {
-    return reportsUrl.replace(/\/+$/, '');
+  function toggleProbe(id) {
+    setSelectedProbes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   function runPlan(ev) {
@@ -82,7 +85,7 @@ export default function App() {
     setPlanStatus('running');
     setPlanError('');
     setPlan('');
-    fetch(`${base()}/api/run.bxm`, {
+    fetch(`${CORE_URL}/api/run.bxm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ targetType, targetDescription })
@@ -100,8 +103,10 @@ export default function App() {
       )
       .then((data) => {
         const cleaned = stripThinking(data.plan);
+        const options = extractProbeOptions(cleaned);
         setPlan(cleaned);
-        setProbeIdsText(extractProbeIds(cleaned));
+        setProbeOptions(options);
+        setSelectedProbes(new Set(options.map((o) => o.id)));
         setPlanStatus('done');
       })
       .catch((err) => {
@@ -112,13 +117,10 @@ export default function App() {
 
   function runExecute(ev) {
     ev.preventDefault();
-    const probeIds = probeIdsText
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const probeIds = probeOptions.map((o) => o.id).filter((id) => selectedProbes.has(id));
 
     if (probeIds.length === 0) {
-      setExecError('Add at least one probe id (comma-separated).');
+      setExecError('Select at least one probe.');
       setExecStatus('error');
       return;
     }
@@ -146,7 +148,7 @@ export default function App() {
     setReportStatus('idle');
     setReportError('');
 
-    fetch(`${base()}/api/execute.bxm`, {
+    fetch(`${CORE_URL}/api/execute.bxm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -198,7 +200,7 @@ export default function App() {
       reportWindow.document.write('<p style="font:14px sans-serif;padding:2rem">Building report&hellip;</p>');
     }
 
-    fetch(`${reportsBase()}/report.bxm`, {
+    fetch(`${REPORTS_URL}/report.bxm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(report)
@@ -248,19 +250,13 @@ export default function App() {
         <h2>1. Pick a strategy</h2>
         <div className="field">
           <label htmlFor="f-type">Target type</label>
-          <input
-            id="f-type"
-            className="input"
-            list="f-type-options"
-            required
-            value={targetType}
-            onChange={(e) => setTargetType(e.target.value)}
-          />
-          <datalist id="f-type-options">
+          <select id="f-type" className="select" required value={targetType} onChange={(e) => setTargetType(e.target.value)}>
             {TARGET_TYPES.map((t) => (
-              <option key={t} value={t} />
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
-          </datalist>
+          </select>
         </div>
         <div className="field">
           <label htmlFor="f-desc">Target description</label>
@@ -272,19 +268,6 @@ export default function App() {
             placeholder="What it does, what tools or data it can access, how a user talks to it."
           />
         </div>
-        <details className="advanced">
-          <summary>Advanced: Rexor backend address</summary>
-          <div className="field">
-            <label htmlFor="f-core-url">core service URL (not your target AI)</label>
-            <input id="f-core-url" className="input" value={coreUrl} onChange={(e) => onCoreUrlChange(e.target.value)} />
-            <div className="hint">
-              This is Rexor&rsquo;s own <code>core</code> service (running locally via{' '}
-              <code>scripts/compose.sh up --build core atlas-redteam</code>), not the AI you&rsquo;re testing. Leave
-              this as <code>http://localhost:8081</code> unless you moved <code>core</code> elsewhere &mdash; you&rsquo;ll
-              enter your target&rsquo;s URL in step 2, below.
-            </div>
-          </div>
-        </details>
         <div className="row-end">
           {planStatus === 'running' ? <StatusPill status="running">Analyzing target&hellip;</StatusPill> : <span />}
           <Button type="submit" variant="primary" disabled={planStatus === 'running'}>
@@ -322,15 +305,29 @@ export default function App() {
           </p>
 
           <div className="field">
-            <label htmlFor="f-probes">Probe IDs to run</label>
-            <input
-              id="f-probes"
-              className="input mono"
-              value={probeIdsText}
-              onChange={(e) => setProbeIdsText(e.target.value)}
-              placeholder="PI-DIRECT-001, ACT-001"
-            />
-            <div className="hint">Pre-filled from the plan above &mdash; edit freely.</div>
+            <div className="field-head">
+              <label>Probes to run</label>
+              <div className="probe-select-actions">
+                <button type="button" className="link-btn" onClick={() => setSelectedProbes(new Set(probeOptions.map((o) => o.id)))}>
+                  Select all
+                </button>
+                <button type="button" className="link-btn" onClick={() => setSelectedProbes(new Set())}>
+                  Select none
+                </button>
+              </div>
+            </div>
+            <div className="probe-checklist">
+              {probeOptions.map((o) => (
+                <label key={o.id} className="probe-check">
+                  <input type="checkbox" checked={selectedProbes.has(o.id)} onChange={() => toggleProbe(o.id)} />
+                  <code className="mono">{o.id}</code>
+                  {o.name ? <span className="probe-name">{o.name}</span> : null}
+                </label>
+              ))}
+            </div>
+            <div className="hint">
+              Pulled from the plan above &mdash; {selectedProbes.size} / {probeOptions.length} selected.
+            </div>
           </div>
 
           <div className="grid-2">
@@ -420,18 +417,7 @@ export default function App() {
 
           {report ? (
             <div className="row-end">
-              <details className="advanced">
-                <summary>Advanced: reports service address</summary>
-                <div className="field">
-                  <label htmlFor="f-reports-url">reports service URL</label>
-                  <input
-                    id="f-reports-url"
-                    className="input"
-                    value={reportsUrl}
-                    onChange={(e) => onReportsUrlChange(e.target.value)}
-                  />
-                </div>
-              </details>
+              <span />
               <Button variant="primary" onClick={openReport} disabled={reportStatus === 'running'}>
                 {reportStatus === 'running' ? 'Building report…' : 'Generate report'}
               </Button>
