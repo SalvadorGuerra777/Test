@@ -1,0 +1,12 @@
+services:
+  core:
+    build: .
+    env_file: .env
+    ports:
+      - "8081:8080"
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    external: true

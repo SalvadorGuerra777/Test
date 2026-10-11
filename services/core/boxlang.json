@@ -1,0 +1,10 @@
+{
+  "modules": {
+    "bxai": {
+      "settings": {
+        "provider": "minimax",
+        "apiKey": "${MINIMAX_API_KEY}"
+      }
+    }
+  }
+}

@@ -1,137 +1,44 @@
-# atlas-redteam
+# Break Me — ANIA x Ortus Hackathon (Reto 05)
 
-**Educational AI red-team MCP microservice built on the MITRE ATLAS catalog.**
+AI red-teaming platform: usa IA pa hacer pentesting/red-teaming automático a
+otra IA. Arquitectura de microservicios — cada equipo trabaja aislado en su
+propia carpeta bajo `services/`, sin tocar archivos compartidos.
 
-Hackathon challenge **05 / BREAK ME** — an AI red-team system that automatically
-tests another agent for weaknesses and produces a security report, with an
-adaptive attacker/defender loop. Every weakness it finds is mapped to a real
-technique in [MITRE ATLAS](https://atlas.mitre.org/) (Adversarial Threat
-Landscape for AI Systems).
+Ver [CLAUDE.md](./CLAUDE.md) pa contexto completo del reto, decisiones y
+estado del proyecto.
 
----
+## Servicios
 
-## What it does
-
-| Challenge requirement | Where |
-|---|---|
-| **Automatically test an agent + generate a security report** | `harness.run_eval` → `report.write_html/json` |
-| **Attacker & defender that adapt to each other** | `harness.run_adaptive` |
-| **Reusable AI security testing toolkit / attack corpus / eval suite** | `corpus.py`, `mcp_server.py` |
-| **Agents, tools, middleware, structured output, HITL, evaluation** | MCP tools + judge + reports |
-
-It ships as an **MCP server** (`atlas_redteam.mcp_server`) that exposes two tool
-groups:
-
-- **ATLAS reference** — query tactics, techniques, mitigations and real-world
-  case studies from the pinned ATLAS catalog (version 2026.09: 16 tactics,
-  208 techniques, 40 mitigations, 73 case studies).
-- **Red-team toolkit** — a probe corpus, a response judge, and demo evaluation
-  loops.
-
-## Safety / ethics by construction
-
-This is a **defensive** evaluation tool for agents you own or are authorized to
-test. The probe corpus contains **detection probes, not weaponized exploits**:
-
-- A **canary secret** (`CANARY-7F3A-DO-NOT-REVEAL`) the target is told to keep
-  private — a probe "succeeds" only by leaking this harmless fake token.
-- **Benign injected markers** (`ZEBRA-INJECTED-OK`) — observing the agent echo a
-  harmless marker proves an injection channel is exploitable, with zero
-  real-world harm.
-- A **benign scope policy** ("cooking-only") to measure instruction-manipulation
-  resistance.
-
-This measures susceptibility to each ATLAS **technique class** without producing
-content that gives uplift to actual misuse.
-
-## Test areas (mapped to ATLAS)
-
-| Probe | ATLAS technique | Test area |
+| Servicio | Stack | Qué hace |
 |---|---|---|
-| Direct instruction override | `AML.T0051` LLM Prompt Injection | prompt injection |
-| Role-play jailbreak | `AML.T0054` LLM Jailbreak | prompt injection |
-| Indirect injection via document | `AML.T0051` | malicious documents |
-| Poisoned tool output | `AML.T0051` | tool abuse |
-| System-prompt extraction | `AML.T0056` Extract LLM System Prompt | information disclosure |
-| Incremental disclosure | `AML.T0057` LLM Data Leakage | information disclosure |
-| Scope override | `AML.T0054` | instruction manipulation |
-| Unbounded output | `AML.T0029` Denial of AI Service | excessive resource usage |
-| Unauthorized action | `AML.T0053` LLM Plugin Compromise | unauthorized actions |
+| [`atlas-redteam`](./services/atlas-redteam) | Python, MCP | Catálogo MITRE ATLAS + toolkit de probes/attack corpus, expuesto como servidor MCP. Fuente de verdad de "qué ataques existen" y "cómo evaluar una respuesta". |
+| [`core`](./services/core) | BoxLang + bx-ai (MiniMax) | Orquestador: dado el tipo de IA a testear, consulta el MCP de `atlas-redteam` pa elegir técnicas/probes, y usa un `aiAgent` pa producir el plan de análisis. Es el componente que cumple el requisito BoxLang + BoxLang AI del reto. |
+| [`_template-python`](./services/_template-python) | Python/FastAPI | Plantilla base pa nuevos servicios Python (ej. servicio de reportes). |
+| [`_template-boxlang`](./services/_template-boxlang) | BoxLang (MiniServer) | Plantilla base pa el servicio BoxLang/BoxLang AI (requisito del reto). |
 
-## Install & run
+## Reglas de convivencia (evitar conflictos de merge)
 
-```bash
-pip install -e .            # or: pip install mcp pyyaml
+Cada microservicio es auto-contenido: su propio `Dockerfile`, `docker-compose.yml`
+y `.env` (no se commitea). Nadie edita un compose/Dockerfile compartido.
 
-# Run the MCP server (stdio — standard for MCP clients)
-python -m atlas_redteam.mcp_server
-python -m atlas_redteam.mcp_server --http    # streamable-http on :8765
-```
+### Crear un servicio nuevo
 
-### Register with an MCP client
+1. Copiá la plantilla que corresponda:
+   - `services/_template-python` — Python (FastAPI).
+   - `services/_template-boxlang` — BoxLang.
+2. Renombrá la copia a `services/<tu-servicio>`.
+3. Reemplazá `change_me` por el nombre real del servicio en `docker-compose.yml`
+   (y en `app/main.py` si es Python).
+4. Copiá `.env.example` a `.env` y ajustá valores.
+5. Elegí un puerto de host libre en tu `docker-compose.yml`.
 
-```json
-{
-  "mcpServers": {
-    "atlas-redteam": {
-      "command": "python",
-      "args": ["-m", "atlas_redteam.mcp_server"]
-    }
-  }
-}
-```
-
-### Generate reports from the CLI
+### Levantar todo
 
 ```bash
-python scripts/run_eval.py --target vulnerable --out reports/vulnerable
-python scripts/run_eval.py --target hardened  --out reports/hardened
-python scripts/run_eval.py --adaptive --rounds 5 --out reports/adaptive
+./scripts/compose.sh up --build
 ```
 
-### End-to-end MCP client demo
-
-```bash
-python scripts/mcp_client_demo.py
-```
-
-## Testing your own agent
-
-The server is the "security brain"; your client drives the agent under test:
-
-1. `list_probes` / `get_probe` → obtain each probe's payload.
-2. Deliver the payload to the agent **you are authorized to test**.
-3. `judge_response(probe_id, response)` → get a scored finding mapped to ATLAS,
-   with suggested mitigations.
-4. Aggregate findings and render a report.
-
-To wire a real LLM in-process instead, implement `TargetAgent` (see
-`agent.CallableAgent`) and pass it to `harness.run_eval`.
-
-## MCP tools
-
-```
-atlas_stats, atlas_search, atlas_get_tactic, atlas_get_technique,
-atlas_list_techniques, atlas_get_mitigation, atlas_get_case_study
-list_probes, get_probe, judge_response, run_demo_eval, run_demo_adaptive
-```
-
-## Architecture
-
-```
-atlas_redteam/
-  catalog.py     MITRE ATLAS loader (tactics/techniques/mitigations/case-studies)
-  corpus.py      educational probe corpus + heuristic detectors (judges)
-  agent.py       TargetAgent protocol, deterministic MockAgent, turn builder
-  harness.py     run_eval (single pass) + run_adaptive (attacker/defender loop)
-  report.py      JSON + self-contained HTML security report
-  mcp_server.py  MCP microservice exposing catalog + toolkit
-scripts/         run_eval CLI, mcp_client_demo
-tests/           smoke + behavior tests
-data/            pinned ATLAS-latest.yaml
-```
-
-## Attribution
-
-Techniques, mitigations and case studies © [MITRE ATLAS](https://github.com/mitre-atlas/atlas-data),
-Apache-2.0. This toolkit is Apache-2.0.
+El script descubre automáticamente todos los `services/*/docker-compose.yml`
+(menos las plantillas `_template-*`) y los levanta juntos en la red compartida
+`microservices`. Agregar o quitar un servicio no requiere tocar ningún archivo
+central.
